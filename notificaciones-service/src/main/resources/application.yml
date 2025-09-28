@@ -1,0 +1,24 @@
+server:
+  port: 8085
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5450/studentgest
+    username: postgres
+    password: ABCabc123
+  jpa:
+    hibernate:
+      ddl-auto: create
+    show-sql: true
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: codecapibara2025@gmail.com
+    password: dppu dzlq jogb dlie
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
