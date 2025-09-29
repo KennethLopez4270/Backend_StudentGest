@@ -5,6 +5,8 @@ import com.studentgest.user_service.model.Rol;
 import com.studentgest.user_service.model.User;
 import com.studentgest.user_service.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -33,8 +35,15 @@ public class UserController {
     }
 
     @PostMapping
-    public User createUser(@RequestBody User user) {
-        return userService.createUser(user);
+    public ResponseEntity<?> createUser(@RequestBody User user) {
+        try {
+            User savedUser = userService.createUser(user);
+            return ResponseEntity.ok(savedUser);
+        } catch (DataIntegrityViolationException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Violación de constraint: " + e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", "Error interno: " + e.getMessage(), "cause", e.getCause()));
+        }
     }
 
     @PutMapping("/{id}")
@@ -113,6 +122,12 @@ public class UserController {
     @GetMapping("/rol/{rol}")
     public List<User> getUsuariosPorRol(@PathVariable Rol rol) {
         return userService.getUsuariosPorRol(rol);
+    }
+
+    @PutMapping("/activar/{id}")
+    public Map<String, String> activarUsuario(@PathVariable Integer id) {
+        userService.activarUsuario(id);
+        return Map.of("message", "Usuario activado y estado cambiado a APROBADO correctamente.");
     }
 
 }

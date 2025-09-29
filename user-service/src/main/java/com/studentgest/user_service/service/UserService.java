@@ -1,5 +1,6 @@
 package com.studentgest.user_service.service;
 
+import com.studentgest.user_service.model.EstadoUsuario;
 import com.studentgest.user_service.model.Rol;
 import com.studentgest.user_service.model.User;
 import com.studentgest.user_service.repository.UserRepository;
@@ -30,6 +31,8 @@ public class UserService {
     }
 
     public User createUser(User user) {
+        // Establecer estado a PENDIENTE por defecto
+        user.setEstado(EstadoUsuario.PENDIENTE);
         return repository.save(user);
     }
 
@@ -81,4 +84,11 @@ public class UserService {
         return repository.findByRol(rol);
     }
 
+    public void activarUsuario(Integer id) {
+        repository.findById(id).ifPresent(user -> {
+            user.setActivo(true);
+            user.setEstado(EstadoUsuario.APROBADO);
+            repository.save(user);
+        });
+    }
 }
