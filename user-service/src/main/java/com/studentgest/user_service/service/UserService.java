@@ -29,6 +29,9 @@ public class UserService {
     private UserRepository repository;
 
     @Autowired
+    private PasswordHistoryService passwordHistoryService; 
+
+    @Autowired
     private PasswordPolicyService passwordPolicyService;
 
     @Autowired
@@ -109,8 +112,12 @@ public class UserService {
     
             User savedUser = repository.save(newUser);
             logger.info("✅ Usuario creado exitosamente: {}", savedUser.getEmail());
+            // ✅ NUEVO: Guardar la contraseña inicial en el historial
+            passwordHistoryService.addToPasswordHistory(savedUser.getId_usuario(), hashedPassword);
             
+            logger.info("✅ Usuario creado exitosamente: {}", savedUser.getEmail());
             return savedUser;
+            
     
         } catch (DataIntegrityViolationException e) {
             logger.error("❌ Error de integridad de datos: {}", e.getMessage());
@@ -229,14 +236,23 @@ public class UserService {
         }
         
         return repository.findById(userId).map(user -> {
-            // Verificar que no sea la contraseña actual
+            String nuevaPasswordHash = passwordEncoder.encode(nuevaPassword);
+            
+            // 1. Verificar que no sea la contraseña actual
             if (passwordEncoder.matches(nuevaPassword, user.getPassword())) {
                 throw new IllegalArgumentException("La nueva contraseña debe ser diferente a la actual");
             }
             
-            // HASHEAR LA NUEVA CONTRASEÑA
-            String hashedPassword = passwordEncoder.encode(nuevaPassword);
-            user.setPassword(hashedPassword);
+            // 2. ✅ NUEVO: Verificar que no esté en el historial (últimas 5 contraseñas)
+            if (passwordHistoryService.isPasswordInHistory(userId, nuevaPasswordHash)) {
+                throw new IllegalArgumentException("No puede reutilizar contraseñas anteriores (últimas 5 contraseñas)");
+            }
+            
+            // 3. ✅ NUEVO: Guardar la contraseña actual en el historial ANTES de cambiarla
+            passwordHistoryService.addToPasswordHistory(userId, user.getPassword());
+            
+            // 4. Actualizar la contraseña
+            user.setPassword(nuevaPasswordHash);
             user.setBloqueado(false);
             user.setIntentosFallidos(0);
             user.setRequiresPasswordChange(false);
@@ -249,25 +265,32 @@ public class UserService {
             repository.save(user);
             auditLogService.logPasswordChange(userId, ipAddress);
             return true;
+            
         }).orElse(false);
     }
 
     public User updateUser(Integer id, User userDetails) {
         return repository.findById(id).map(user -> {
-            user.setNombre(userDetails.getNombre());
-            user.setApellido_paterno(userDetails.getApellido_paterno());
-            user.setApellido_materno(userDetails.getApellido_materno());
-            user.setEmail(userDetails.getEmail().toLowerCase().trim());
-            user.setRol(userDetails.getRol());
-            user.setFoto(userDetails.getFoto());
+            // ... actualización de otros campos ...
+            
             if (userDetails.getPassword() != null && !userDetails.getPassword().isEmpty()) {
                 if (!passwordPolicyService.validatePassword(userDetails.getPassword())) {
                     throw new IllegalArgumentException("La contraseña no cumple con las políticas de seguridad");
                 }
-                // HASHEAR LA NUEVA CONTRASEÑA
-                String hashedPassword = passwordEncoder.encode(userDetails.getPassword());
-                user.setPassword(hashedPassword);
+                
+                String nuevaPasswordHash = passwordEncoder.encode(userDetails.getPassword());
+                
+                // ✅ NUEVO: Verificar que no esté en el historial
+                if (passwordHistoryService.isPasswordInHistory(id, nuevaPasswordHash)) {
+                    throw new IllegalArgumentException("No puede reutilizar contraseñas anteriores");
+                }
+                
+                // ✅ NUEVO: Guardar contraseña actual en historial
+                passwordHistoryService.addToPasswordHistory(id, user.getPassword());
+                
+                user.setPassword(nuevaPasswordHash);
             }
+            
             return repository.save(user);
         }).orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
     }

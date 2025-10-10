@@ -23,17 +23,17 @@ public class AuditLogService {
     public void logLoginAttempt(String email, boolean success, String ipAddress) {
         String eventType = success ? "LOGIN_SUCCESS" : "LOGIN_FAILED";
         logSecurityEvent(eventType, 
-            String.format("Login attempt for user %s - %s", email, success ? "SUCCESS" : "FAILED"), 
+            String.format("Intento de Inicio de sesion para usuario %s - %s", email, success ? "SUCCESS" : "FAILED"), 
             null, ipAddress);
     }
     
     public void logPasswordChange(Integer userId, String ipAddress) {
-        logSecurityEvent("PASSWORD_CHANGE", "User changed password", userId, ipAddress);
+        logSecurityEvent("PASSWORD_CHANGE", "El usuario cambio la contraseña", userId, ipAddress);
     }
     
     public void logAccountLocked(String email, String ipAddress) {
         logSecurityEvent("ACCOUNT_LOCKED", 
-            String.format("Account locked for user %s due to multiple failed attempts", email), 
+            String.format("Cuenta bloqueada para el usuario por cantidad de intentos", email), 
             null, ipAddress);
     }
 }
