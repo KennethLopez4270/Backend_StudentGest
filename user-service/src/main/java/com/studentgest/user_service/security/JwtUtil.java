@@ -2,8 +2,12 @@ package com.studentgest.user_service.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+
+import com.studentgest.user_service.service.SecurityConfigService;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
@@ -14,28 +18,39 @@ import java.util.function.Function;
 @Component
 public class JwtUtil {
 
-    @Value("${jwt.secret:mySecretKeyForJWTGenerationInStudentGestApplication2024}")
-    private String secret;
-
-    @Value("${jwt.expiration:150000}") // 15 minutos por defecto
-    private Long expiration;
-
-    private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes());
+    @Autowired
+    private SecurityConfigService securityConfigService;
+    
+    // Remueve los @Value fijos y usa la configuración de BD
+    public String getSecret() {
+        return securityConfigService.getStringValue("JWT_SECRET", "mySecretKeyForJWTGenerationInStudentGestApplication2024");
     }
-    @Value("${jwt.inactivity-timeout:150000}") // 15 minutos por defecto
-    private Long inactivityTimeout;
+    
+    public Long getExpiration() {
+        Integer timeoutMinutes = securityConfigService.getIntegerValue("TIMEOUT_SESION_MINUTOS", 15);
+        return (long) (timeoutMinutes * 60 * 1000); // Convertir minutos a milisegundos
+    }
+    
+    public Long getInactivityTimeout() {
+        Integer timeoutMinutes = securityConfigService.getIntegerValue("TIMEOUT_SESION_MINUTOS", 15);
+        return (long) (timeoutMinutes * 60 * 1000);
+    }
+    
+    private SecretKey getSigningKey() {
+        return Keys.hmacShaKeyFor(getSecret().getBytes());
+    }
+    
     public String generateToken(String email, String rol, Integer userId) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("rol", rol);
         claims.put("userId", userId);
-        claims.put("lastActivity", System.currentTimeMillis()); // ← NUEVO: timestamp de última actividad
+        claims.put("lastActivity", System.currentTimeMillis());
         
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(email)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + expiration))
+                .setExpiration(new Date(System.currentTimeMillis() + getExpiration()))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -47,7 +62,7 @@ public class JwtUtil {
                 .setClaims(claims)
                 .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + expiration))
+                .setExpiration(new Date(System.currentTimeMillis() + getExpiration()))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -102,7 +117,7 @@ public class JwtUtil {
             Long currentTime = System.currentTimeMillis();
             
             // Verificar si ha pasado más tiempo del permitido sin actividad
-            return (currentTime - lastActivity) > inactivityTimeout;
+            return (currentTime - lastActivity) > getInactivityTimeout();
         } catch (Exception e) {
             return true; // Si hay error, considerar como inactivo
         }

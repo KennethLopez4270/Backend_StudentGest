@@ -42,6 +42,9 @@ public class UserService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+    
+    @Autowired
+    private SecurityConfigService securityConfigService;
 
     public List<User> getAllUsers() {
         return repository.findAll();
@@ -238,28 +241,32 @@ public class UserService {
         return repository.findById(userId).map(user -> {
             String nuevaPasswordHash = passwordEncoder.encode(nuevaPassword);
             
-            // 1. Verificar que no sea la contraseña actual
+            // Verificar que no sea la contraseña actual
             if (passwordEncoder.matches(nuevaPassword, user.getPassword())) {
                 throw new IllegalArgumentException("La nueva contraseña debe ser diferente a la actual");
             }
             
-            // 2. ✅ NUEVO: Verificar que no esté en el historial (últimas 5 contraseñas)
+            // Verificar que no esté en el historial
             if (passwordHistoryService.isPasswordInHistory(userId, nuevaPasswordHash)) {
-                throw new IllegalArgumentException("No puede reutilizar contraseñas anteriores (últimas 5 contraseñas)");
+                Map<String, Object> config = securityConfigService.loadSecurityConfig();
+                int historySize = (Integer) config.get("passwordHistorySize");
+                throw new IllegalArgumentException("No puede reutilizar las últimas " + historySize + " contraseñas");
             }
             
-            // 3. ✅ NUEVO: Guardar la contraseña actual en el historial ANTES de cambiarla
+            // Guardar contraseña actual en historial
             passwordHistoryService.addToPasswordHistory(userId, user.getPassword());
             
-            // 4. Actualizar la contraseña
+            // Actualizar contraseña
             user.setPassword(nuevaPasswordHash);
             user.setBloqueado(false);
             user.setIntentosFallidos(0);
             user.setRequiresPasswordChange(false);
             user.setUltimoCambioPassword(new Timestamp(System.currentTimeMillis()));
             
-            // Establecer nueva expiración (90 días)
-            LocalDateTime expirationDate = LocalDateTime.now().plusDays(90);
+            // Establecer expiración desde configuración
+            Map<String, Object> config = securityConfigService.loadSecurityConfig();
+            int expiryDays = (Integer) config.get("passwordExpiryDays");
+            LocalDateTime expirationDate = LocalDateTime.now().plusDays(expiryDays);
             user.setFechaExpiracionPassword(Timestamp.valueOf(expirationDate));
             
             repository.save(user);

@@ -32,6 +32,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
+        String requestURI = request.getRequestURI();
+        String method = request.getMethod();
+        
+        if (isPublicEndpoint(requestURI, method)) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         final String authorizationHeader = request.getHeader("Authorization");
 
         String email = null;
@@ -68,7 +76,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                     
-                    // ✅ NUEVO: Refrescar token en cada request válido
                     String newToken = jwtUtil.refreshToken(jwt);
                     response.setHeader("X-New-Token", newToken);
                     
@@ -86,8 +93,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         chain.doFilter(request, response);
     }
-    
-    // ✅ NUEVO: Método para enviar respuestas de error
+    private boolean isPublicEndpoint(String requestURI, String method) {
+        return 
+            // Endpoints de usuarios públicos
+            requestURI.equals("/api/users") && "POST".equalsIgnoreCase(method) ||
+            requestURI.equals("/api/users/login") ||
+            requestURI.equals("/api/users/reset-password") ||
+            requestURI.equals("/api/users/password-policy") ||
+            requestURI.equals("/api/users/public/password-policy") ||  // ← IMPORTANTE
+            requestURI.equals("/api/users/test-cors") ||
+            requestURI.equals("/api/users/debug-login") ||
+            
+            // Endpoints de seguridad públicos  
+            requestURI.equals("/api/security-config/password-policy") ||
+            
+            // O cualquier endpoint que empiece con /public/
+            requestURI.contains("/public/");
+    }
+    // Método para enviar respuestas de error
     private void sendErrorResponse(HttpServletResponse response, String message) throws IOException {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json");
@@ -101,13 +124,37 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         response.getWriter().write(jsonResponse);
     }
     
-    // ✅ OPCIONAL: Excluir endpoints públicos del filtro
+    //  Excluir endpoints públicos del filtro
     @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
-        String path = request.getRequestURI();
-        return path.startsWith("/api/users/login") ||
-               path.startsWith("/api/users/register") ||
-               path.startsWith("/api/users/password-policy") ||
-               path.startsWith("/api/users/test-cors");
+protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+    String path = request.getRequestURI();
+    String method = request.getMethod();
+    
+    System.out.println("🔍 Filter checking: " + method + " " + path);
+    
+    // ✅ LISTA COMPLETA DE ENDPOINTS PÚBLICOS
+    boolean isPublic = 
+        // Endpoints de usuarios
+        path.equals("/api/users") && "POST".equalsIgnoreCase(method) ||
+        path.equals("/api/users/login") ||
+        path.startsWith("/api/users/register") ||
+        path.startsWith("/api/users/reset-password") ||
+        path.startsWith("/api/users/password-policy") ||
+        path.startsWith("/api/users/public/") ||
+        path.startsWith("/api/users/debug/") ||
+        path.startsWith("/api/users/simple") ||
+        path.equals("/api/users/test-cors") ||
+        
+        // Endpoints de seguridad
+        path.startsWith("/api/security-config/password-policy") ||
+        path.startsWith("/api/security-config/public/");
+    
+    if (isPublic) {
+        System.out.println("✅ Endpoint público, skipping filter: " + path);
+    } else {
+        System.out.println("🔐 Endpoint protegido, aplicando filter: " + path);
     }
+    
+    return isPublic;
+}
 }

@@ -4,6 +4,7 @@ import com.studentgest.user_service.model.EstadoUsuario;
 import com.studentgest.user_service.model.Rol;
 import com.studentgest.user_service.model.User;
 import com.studentgest.user_service.service.PasswordPolicyService;
+import com.studentgest.user_service.service.SecurityConfigService;
 import com.studentgest.user_service.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -35,6 +36,9 @@ public class UserController {
 
     @Autowired
     private PasswordPolicyService passwordPolicyService;
+
+    @Autowired  
+    private SecurityConfigService securityConfigService;
 
     private String getClientIp(HttpServletRequest request) {
         String xfHeader = request.getHeader("X-Forwarded-For");
@@ -350,6 +354,80 @@ public ResponseEntity<?> createUser(@RequestBody @Valid User user, HttpServletRe
             "requiresNumbers", true,
             "requiresSpecial", true
         ));
+    }
+    @GetMapping("/simple-policy")
+    public ResponseEntity<?> getSimplePolicy() {
+        // ✅ ENDPOINT SUPER SIMPLE - SIN DEPENDENCIAS EXTERNAS
+        System.out.println("🎯 Endpoint /simple-policy llamado");
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", "Endpoint funcionando",
+            "minLength", 6,
+            "requiresUppercase", true,
+            "requiresLowercase", true,
+            "requiresNumbers", true,
+            "requiresSpecial", true,
+            "allowedSpecialChars", "@$!%*?&"
+        ));
+    }
+    @GetMapping("/debug/password-policy")
+    public ResponseEntity<?> debugPasswordPolicy() {
+        try {
+            // Verificar si la tabla existe y tiene datos
+            boolean tableExists = true; // Asumimos que existe
+            
+            // Cargar configuración
+            Map<String, Object> config = securityConfigService.loadSecurityConfig();
+            
+            // Verificar valores específicos
+            Integer minLength = securityConfigService.getIntegerValue("LONGITUD_MINIMA_CONTRASENA", -1);
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "debug_info", Map.of(
+                    "minLength_from_bd", minLength,
+                    "config_loaded", config,
+                    "table_exists", tableExists
+                ),
+                "policy", Map.of(
+                    "minLength", config.get("minPasswordLength"),
+                    "requiresUppercase", config.get("requiresUppercase"),
+                    "requiresLowercase", config.get("requiresLowercase"),
+                    "requiresNumbers", config.get("requiresNumbers"),
+                    "requiresSpecial", config.get("requiresSpecial"),
+                    "allowedSpecialChars", config.get("allowedSpecialChars")
+                )
+            ));
+        } catch (Exception e) {
+            logger.error("Error en debug password policy", e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "Error: " + e.getMessage()
+            ));
+        }
+    }
+    @GetMapping("/public/password-policy")
+    public ResponseEntity<?> getPublicPasswordPolicy() {
+        try {
+            Map<String, Object> config = securityConfigService.loadSecurityConfig();
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "requirements", passwordPolicyService.getPasswordRequirements(),
+                "minLength", config.get("minPasswordLength"),
+                "requiresUppercase", config.get("requiresUppercase"),
+                "requiresLowercase", config.get("requiresLowercase"),
+                "requiresNumbers", config.get("requiresNumbers"),
+                "requiresSpecial", config.get("requiresSpecial"),
+                "allowedSpecialChars", config.get("allowedSpecialChars")
+            ));
+        } catch (Exception e) {
+            logger.error("Error al obtener política de contraseñas pública", e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "Error interno del servidor"
+            ));
+        }
     }
 
     @GetMapping("/activos")

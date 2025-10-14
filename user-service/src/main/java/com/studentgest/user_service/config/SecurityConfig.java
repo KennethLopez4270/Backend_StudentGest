@@ -32,22 +32,38 @@ public class SecurityConfig {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
-        @Bean
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        System.out.println("🔐 INICIANDO CONFIGURACIÓN DE SEGURIDAD...");
+        
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(authz -> authz
-                // Añade esto para permitir registro
+                // ✅ PERMITIR TODOS LOS ENDPOINTS PÚBLICOS EXPLÍCITAMENTE
+                .requestMatchers(
+                    "/api/users/login",
+                    "/api/users/register", 
+                    "/api/users/reset-password",
+                    "/api/users/password-policy",
+                    "/api/users/public/**",
+                    "/api/users/debug/**",
+                    "/api/users/simple-password-policy",
+                    "/api/users/test-cors",
+                    "/api/security-config/password-policy",
+                    "/api/security-config/public/**"
+                ).permitAll()
+                
+                // ✅ PERMITIR REGISTRO DE USUARIOS
                 .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
-                // Los otros permitidos
-                .requestMatchers("/api/users/login", "/api/users/reset-password", "/api/users/password-policy", "/api/users/test-cors").permitAll()
-                // Resto requiere auth
-                .requestMatchers("/api/users/**").authenticated()
+                
+                // ❌ EL RESTO REQUIERE AUTENTICACIÓN
+                .anyRequest().authenticated()
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
+        System.out.println("🔐 CONFIGURACIÓN DE SEGURIDAD COMPLETADA");
         return http.build();
     }
 
