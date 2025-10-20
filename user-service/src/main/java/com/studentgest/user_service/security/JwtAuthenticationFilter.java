@@ -20,8 +20,6 @@ import java.util.Collections;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
-    
-    // ✅ CORREGIDO: Logger con import correcto
     private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     public JwtAuthenticationFilter(JwtUtil jwtUtil) {
@@ -35,38 +33,55 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String requestURI = request.getRequestURI();
         String method = request.getMethod();
         
+        logger.info("🎯 INICIANDO FILTRO para: {} {}", method, requestURI);
+
+        // ✅ SI ES PÚBLICO, PASAR DIRECTAMENTE
         if (isPublicEndpoint(requestURI, method)) {
+            logger.info("✅ Endpoint público, pasando filtro: {}", requestURI);
             chain.doFilter(request, response);
             return;
         }
 
+        logger.info("🔐 Endpoint protegido, verificando autenticación: {}", requestURI);
+
         final String authorizationHeader = request.getHeader("Authorization");
+        logger.info("📨 Authorization Header: {}", authorizationHeader);
 
         String email = null;
         String jwt = null;
 
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             jwt = authorizationHeader.substring(7);
+            logger.info("✅ Token JWT encontrado, longitud: {}", jwt.length());
+            
             try {
                 email = jwtUtil.extractUsername(jwt);
+                logger.info("👤 Usuario extraído del token: {}", email);
+                
             } catch (Exception e) {
-                logger.warn("JWT token inválido o expirado: {}", e.getMessage());
+                logger.error("❌ Error al extraer username del token: {}", e.getMessage());
+                sendErrorResponse(response, "Token inválido: " + e.getMessage());
+                return; // ✅ IMPORTANTE: return después de enviar error
             }
+        } else {
+            logger.warn("❌ No hay Authorization header o formato incorrecto");
+            sendErrorResponse(response, "Token de autorización requerido");
+            return; // ✅ IMPORTANTE: return después de enviar error
         }
 
-        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+        if (email != null) {
+            logger.info("🔐 Verificando autenticación para usuario: {}", email);
+            
             try {
-                // ✅ NUEVO: Verificar inactividad
-                if (jwtUtil.isTokenInactive(jwt)) {
-                    logger.warn("Token inactivo por timeout para usuario: {}", email);
-                    sendErrorResponse(response, "Sesión inactiva. Por favor, inicie sesión nuevamente.");
-                    return;
-                }
+                boolean isValid = jwtUtil.validateTokenWithInactivity(jwt, email);
+                logger.info("✅ Resultado validación token: {}", isValid);
                 
-                String rol = jwtUtil.extractRol(jwt);
-                Integer userId = jwtUtil.extractUserId(jwt);
-                
-                if (jwtUtil.validateTokenWithInactivity(jwt, email)) {
+                if (isValid) {
+                    String rol = jwtUtil.extractRol(jwt);
+                    Integer userId = jwtUtil.extractUserId(jwt);
+                    
+                    logger.info("🎉 Autenticación exitosa - Usuario: {}, Rol: {}", email, rol);
+                    
                     UsernamePasswordAuthenticationToken authToken = 
                         new UsernamePasswordAuthenticationToken(
                             email, 
@@ -76,85 +91,76 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                     
+                    // Refrescar token
                     String newToken = jwtUtil.refreshToken(jwt);
                     response.setHeader("X-New-Token", newToken);
                     
-                    logger.debug("Token refrescado para usuario: {}", email);
+                    logger.info("🔄 Token refrescado para usuario: {}", email);
+                    
                 } else {
-                    logger.warn("Token inválido para usuario: {}", email);
-                    sendErrorResponse(response, "Token de autenticación inválido");
-                    return;
+                    logger.warn("🚫 Token inválido para usuario: {}", email);
+                    sendErrorResponse(response, "Token de autenticación inválido o expirado");
+                    return; // ✅ IMPORTANTE: return después de enviar error
                 }
+                
             } catch (Exception e) {
-                logger.error("Error al validar token JWT", e);
-                sendErrorResponse(response, "Error de autenticación");
-                return;
+                logger.error("💥 Error durante la validación del token: {}", e.getMessage());
+                sendErrorResponse(response, "Error de autenticación: " + e.getMessage());
+                return; // ✅ IMPORTANTE: return después de enviar error
             }
         }
+        
+        logger.info("➡️ Continuando cadena de filtros para: {}", requestURI);
         chain.doFilter(request, response);
     }
+
     private boolean isPublicEndpoint(String requestURI, String method) {
-        return 
+        boolean isPublic = 
             // Endpoints de usuarios públicos
-            requestURI.equals("/api/users") && "POST".equalsIgnoreCase(method) ||
+            (requestURI.equals("/api/users") && "POST".equalsIgnoreCase(method)) ||
             requestURI.equals("/api/users/login") ||
-            requestURI.equals("/api/users/reset-password") ||
-            requestURI.equals("/api/users/password-policy") ||
-            requestURI.equals("/api/users/public/password-policy") ||  // ← IMPORTANTE
+            requestURI.startsWith("/api/users/reset-password") ||
+            requestURI.startsWith("/api/users/password-policy") ||
+            requestURI.startsWith("/api/users/public/") ||
             requestURI.equals("/api/users/test-cors") ||
             requestURI.equals("/api/users/debug-login") ||
             
             // Endpoints de seguridad públicos  
-            requestURI.equals("/api/security-config/password-policy") ||
+            requestURI.startsWith("/api/security-config/password-policy") ||
             
-            // O cualquier endpoint que empiece con /public/
-            requestURI.contains("/public/");
+            // ✅ AGREGAR endpoints de debug temporalmente como públicos
+            requestURI.equals("/api/users/debug-token-simple") ||
+            requestURI.equals("/api/users/debug-token") ||
+            requestURI.equals("/api/users/verify-session");
+        
+        return isPublic;
     }
+
     // Método para enviar respuestas de error
     private void sendErrorResponse(HttpServletResponse response, String message) throws IOException {
+        logger.warn("🚨 Enviando error de autenticación: {}", message);
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         
         String jsonResponse = String.format(
-            "{\"success\": false, \"message\": \"%s\", \"error\": \"SESSION_TIMEOUT\"}", 
+            "{\"success\": false, \"message\": \"%s\", \"error\": \"AUTH_ERROR\"}", 
             message
         );
         
         response.getWriter().write(jsonResponse);
+        response.getWriter().flush();
     }
     
-    //  Excluir endpoints públicos del filtro
     @Override
-protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
-    String path = request.getRequestURI();
-    String method = request.getMethod();
-    
-    System.out.println("🔍 Filter checking: " + method + " " + path);
-    
-    // ✅ LISTA COMPLETA DE ENDPOINTS PÚBLICOS
-    boolean isPublic = 
-        // Endpoints de usuarios
-        path.equals("/api/users") && "POST".equalsIgnoreCase(method) ||
-        path.equals("/api/users/login") ||
-        path.startsWith("/api/users/register") ||
-        path.startsWith("/api/users/reset-password") ||
-        path.startsWith("/api/users/password-policy") ||
-        path.startsWith("/api/users/public/") ||
-        path.startsWith("/api/users/debug/") ||
-        path.startsWith("/api/users/simple") ||
-        path.equals("/api/users/test-cors") ||
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        String path = request.getRequestURI();
+        String method = request.getMethod();
         
-        // Endpoints de seguridad
-        path.startsWith("/api/security-config/password-policy") ||
-        path.startsWith("/api/security-config/public/");
-    
-    if (isPublic) {
-        System.out.println("✅ Endpoint público, skipping filter: " + path);
-    } else {
-        System.out.println("🔐 Endpoint protegido, aplicando filter: " + path);
+        boolean isPublic = isPublicEndpoint(path, method);
+        
+        logger.info("🔍 shouldNotFilter - {} {} -> {}", method, path, isPublic ? "PUBLICO" : "PROTEGIDO");
+        
+        return isPublic;
     }
-    
-    return isPublic;
-}
 }

@@ -51,7 +51,8 @@ public class SecurityConfig {
                     "/api/users/simple-password-policy",
                     "/api/users/test-cors",
                     "/api/security-config/password-policy",
-                    "/api/security-config/public/**"
+                    "/api/security-config/public/**",
+                    "/api/users/verify-session"
                 ).permitAll()
                 
                 // ✅ PERMITIR REGISTRO DE USUARIOS
