@@ -5,6 +5,7 @@ import com.studentgest.user_service.model.Rol;
 import com.studentgest.user_service.model.User;
 import com.studentgest.user_service.repository.UserRepository;
 import com.studentgest.user_service.security.JwtUtil;
+import com.studentgest.user_service.service.EmailVerificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -45,6 +46,9 @@ public class UserService {
     
     @Autowired
     private SecurityConfigService securityConfigService;
+
+    @Autowired
+    private EmailVerificationService emailVerificationService;
 
     public List<User> getAllUsers() {
         return repository.findAll();
@@ -105,6 +109,9 @@ public class UserService {
             newUser.setBloqueado(false);
             newUser.setRequiresPasswordChange(false);
             
+            // ✅ NUEVO: Inicializar estado_gmail como "pendiente"
+            newUser.setEstadoGmail("pendiente");
+            
             // Establecer timestamps
             newUser.setCreado_en(new Timestamp(System.currentTimeMillis()));
             newUser.setUltimoCambioPassword(new Timestamp(System.currentTimeMillis()));
@@ -115,13 +122,29 @@ public class UserService {
     
             User savedUser = repository.save(newUser);
             logger.info("✅ Usuario creado exitosamente: {}", savedUser.getEmail());
+            logger.info("🔄 INICIANDO ENVÍO DE EMAIL DE VERIFICACIÓN...");
+            logger.info("📧 Destinatario: {}", savedUser.getEmail());
+            logger.info("👤 Nombre: {}", savedUser.getNombre());
+            
+            // ✅ NUEVO: Enviar email de verificación
+            try {
+                boolean emailSent = emailVerificationService.sendVerificationEmail(savedUser);
+                if (emailSent) {
+                    logger.info("📧 Email de verificación enviado a: {}", savedUser.getEmail());
+                } else {
+                    logger.error("❌ Error al enviar email de verificación a: {}", savedUser.getEmail());
+                }
+            } catch (Exception e) {
+                logger.error("❌ Error enviando email de verificación: {}", e.getMessage());
+                // No lanzar excepción para no bloquear el registro
+            }
+            
             // ✅ NUEVO: Guardar la contraseña inicial en el historial
             passwordHistoryService.addToPasswordHistory(savedUser.getId_usuario(), hashedPassword);
             
             logger.info("✅ Usuario creado exitosamente: {}", savedUser.getEmail());
             return savedUser;
             
-    
         } catch (DataIntegrityViolationException e) {
             logger.error("❌ Error de integridad de datos: {}", e.getMessage());
             throw new IllegalArgumentException("Error de base de datos: " + e.getMessage());
@@ -150,6 +173,7 @@ public class UserService {
         User user = userOptional.get();
         logger.info("✅ USUARIO ENCONTRADO: {}", user.getEmail());
         logger.info("📝 Estado: {}", user.getEstado());
+        logger.info("📧 Estado Gmail: {}", user.getEstadoGmail());
         logger.info("🔓 Activo: {}", user.isActivo());
         logger.info("🔐 Contraseña en DB: {}", user.getPassword());
         logger.info("👤 Rol: {}", user.getRol());
@@ -161,12 +185,41 @@ public class UserService {
             return Map.of("success", false, "message", "Cuenta bloqueada. Contacte al administrador.");
         }
         
-        // Verificar estado y activación
-        if (!EstadoUsuario.APROBADO.equals(user.getEstado()) || !user.isActivo()) {
-            logger.warn("⏳ USUARIO NO APROBADO/INACTIVO: {} - Estado: {} - Activo: {}", 
-                       email, user.getEstado(), user.isActivo());
+        // ✅ NUEVO: Verificar que el usuario esté APROBADO
+        if (!EstadoUsuario.APROBADO.equals(user.getEstado())) {
+            logger.warn("⏳ USUARIO NO APROBADO: {} - Estado: {}", email, user.getEstado());
             auditLogService.logLoginAttempt(email, false, ipAddress);
-            return Map.of("success", false, "message", "Cuenta no activa o pendiente de aprobación");
+            
+            String message = "Cuenta pendiente de aprobación administrativa. Contacte al administrador.";
+            if (EstadoUsuario.PENDIENTE.equals(user.getEstado())) {
+                message = "Cuenta pendiente de aprobación administrativa. Contacte al administrador.";
+            } else if (EstadoUsuario.RECHAZADO.equals(user.getEstado())) {
+                message = "Cuenta rechazada. Contacte al administrador para más información.";
+            }
+            
+            return Map.of("success", false, "message", message);
+        }
+        
+        // ✅ NUEVO: Verificar que el email esté VERIFICADO
+        if (!"verificado".equalsIgnoreCase(user.getEstadoGmail())) {
+            logger.warn("📧 EMAIL NO VERIFICADO: {} - Estado Gmail: {}", email, user.getEstadoGmail());
+            auditLogService.logLoginAttempt(email, false, ipAddress);
+            
+            String message = "Email no verificado. Por favor verifica tu email antes de iniciar sesión.";
+            if ("pendiente".equalsIgnoreCase(user.getEstadoGmail())) {
+                message = "Email pendiente de verificación. Revisa tu bandeja de entrada y haz clic en el enlace de verificación.";
+            } else if ("expirado".equalsIgnoreCase(user.getEstadoGmail())) {
+                message = "El enlace de verificación ha expirado. Solicita un nuevo enlace desde la página de login.";
+            }
+            
+            return Map.of("success", false, "message", message);
+        }
+        
+        // Verificar estado de activación
+        if (!user.isActivo()) {
+            logger.warn("⏳ USUARIO INACTIVO: {}", email);
+            auditLogService.logLoginAttempt(email, false, ipAddress);
+            return Map.of("success", false, "message", "Cuenta inactiva. Contacte al administrador.");
         }
         
         // VERIFICAR CONTRASEÑA
@@ -222,6 +275,38 @@ public class UserService {
             
             return Map.of("success", false, "message", 
                 user.isBloqueado() ? "Cuenta bloqueada por múltiples intentos fallidos" : "Credenciales incorrectas");
+        }
+    }
+    
+    // ✅ NUEVO: Método para reenviar verificación de email
+    public Map<String, Object> resendEmailVerification(String email) {
+        try {
+            Optional<User> userOptional = getUserByEmail(email);
+            if (userOptional.isEmpty()) {
+                return Map.of("success", false, "message", "Usuario no encontrado");
+            }
+            
+            User user = userOptional.get();
+            
+            // Si ya está verificado, no hacer nada
+            if ("verificado".equalsIgnoreCase(user.getEstadoGmail())) {
+                return Map.of("success", true, "message", "El email ya está verificado");
+            }
+            
+            // Reenviar email de verificación
+            boolean emailSent = emailVerificationService.sendVerificationEmail(user);
+            
+            if (emailSent) {
+                logger.info("📧 Email de verificación reenviado a: {}", email);
+                return Map.of("success", true, "message", "Email de verificación reenviado exitosamente");
+            } else {
+                logger.error("❌ Error reenviando email de verificación a: {}", email);
+                return Map.of("success", false, "message", "Error al reenviar email de verificación");
+            }
+            
+        } catch (Exception e) {
+            logger.error("❌ Error en resendEmailVerification: {}", e.getMessage(), e);
+            return Map.of("success", false, "message", "Error interno del servidor");
         }
     }
     
@@ -325,4 +410,26 @@ public class UserService {
         });
     }
 
+    // ✅ NUEVO: Método para verificar estado de verificación
+    public Map<String, Object> getVerificationStatus(String email) {
+        try {
+            Optional<User> userOptional = getUserByEmail(email);
+            if (userOptional.isEmpty()) {
+                return Map.of("success", false, "message", "Usuario no encontrado");
+            }
+            
+            User user = userOptional.get();
+            return Map.of(
+                "success", true,
+                "estado", user.getEstado().toString(),
+                "estadoGmail", user.getEstadoGmail(),
+                "fullyVerified", EstadoUsuario.APROBADO.equals(user.getEstado()) && 
+                               "verificado".equalsIgnoreCase(user.getEstadoGmail())
+            );
+            
+        } catch (Exception e) {
+            logger.error("❌ Error obteniendo estado de verificación: {}", e.getMessage());
+            return Map.of("success", false, "message", "Error interno del servidor");
+        }
+    }
 }

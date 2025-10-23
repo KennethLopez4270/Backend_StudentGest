@@ -23,8 +23,48 @@ public class SecurityConfigController {
     private SecurityConfigService securityConfigService;
     
     @Autowired
-    private PasswordPolicyService passwordPolicyService; // ← AÑADE ESTO
+    private PasswordPolicyService passwordPolicyService;
     
+    // Endpoint para obtener todas las configuraciones
+    @GetMapping("/all")
+    @PreAuthorize("hasRole('DIRECTOR')")
+    public ResponseEntity<?> getAllConfigurations() {
+        try {
+            Map<String, Map<String, Object>> configs = securityConfigService.getAllConfigurations();
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "configurations", configs
+            ));
+        } catch (Exception e) {
+            logger.error("Error al obtener configuraciones", e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "Error obteniendo configuraciones"
+            ));
+        }
+    }
+    
+    /*/ Endpoint para obtener configuración por categoría (público)
+    @GetMapping("/category/{category}")
+    public ResponseEntity<?> getConfigByCategory(@PathVariable String category) {
+        try {
+            Map<String, Object> config = securityConfigService.getConfigByCategory(category);
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "category", category,
+                "config", config
+            ));
+            
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "message", e.getMessage()
+            ));
+        }
+    }*/
+    
+    // Los demás métodos existentes se mantienen igual...
     @GetMapping
     @PreAuthorize("hasRole('DIRECTOR')")
     public ResponseEntity<?> getAllConfig() {
@@ -43,7 +83,7 @@ public class SecurityConfigController {
         }
     }
     
-    @GetMapping("/category/{category}")
+    @GetMapping("/category-policies/{category}")
     @PreAuthorize("hasRole('DIRECTOR')")
     public ResponseEntity<?> getConfigByCategory(@PathVariable String category) {
         try {

@@ -61,12 +61,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             } catch (Exception e) {
                 logger.error("❌ Error al extraer username del token: {}", e.getMessage());
                 sendErrorResponse(response, "Token inválido: " + e.getMessage());
-                return; // ✅ IMPORTANTE: return después de enviar error
+                return;
             }
         } else {
             logger.warn("❌ No hay Authorization header o formato incorrecto");
             sendErrorResponse(response, "Token de autorización requerido");
-            return; // ✅ IMPORTANTE: return después de enviar error
+            return;
         }
 
         if (email != null) {
@@ -100,13 +100,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 } else {
                     logger.warn("🚫 Token inválido para usuario: {}", email);
                     sendErrorResponse(response, "Token de autenticación inválido o expirado");
-                    return; // ✅ IMPORTANTE: return después de enviar error
+                    return;
                 }
                 
             } catch (Exception e) {
                 logger.error("💥 Error durante la validación del token: {}", e.getMessage());
                 sendErrorResponse(response, "Error de autenticación: " + e.getMessage());
-                return; // ✅ IMPORTANTE: return después de enviar error
+                return;
             }
         }
         
@@ -127,12 +127,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             
             // Endpoints de seguridad públicos  
             requestURI.startsWith("/api/security-config/password-policy") ||
+            requestURI.startsWith("/api/security-config/category/") ||
             
-            // ✅ AGREGAR endpoints de debug temporalmente como públicos
+            // ✅ CAPTCHA endpoints (AGREGAR ESTOS)
+            requestURI.startsWith("/api/captcha/") ||
+            
+            // ✅ Password strength endpoints (AGREGAR ESTOS)
+            requestURI.startsWith("/api/password-strength/") ||
+            
+            // ✅ Email validation endpoints (AGREGAR ESTOS)
+            requestURI.startsWith("/api/email/validate") ||
+            requestURI.startsWith("/api/email-verification/") ||
+            
+            // ✅ App config endpoints
+            requestURI.startsWith("/api/app-config/") ||
+            
+            // Endpoints de debug temporalmente como públicos
             requestURI.equals("/api/users/debug-token-simple") ||
             requestURI.equals("/api/users/debug-token") ||
             requestURI.equals("/api/users/verify-session");
         
+        logger.debug("🔍 Verificando endpoint: {} {} -> {}", method, requestURI, isPublic ? "PUBLICO" : "PROTEGIDO");
         return isPublic;
     }
 

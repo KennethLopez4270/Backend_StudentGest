@@ -69,13 +69,13 @@ public class PasswordPolicyService {
         int strength = 0;
         
         // Longitud (máximo 40 puntos)
-        int lengthScore = Math.min((password.length() * 100) / minLength, 40);
+        int lengthScore = Math.min((password.length() * 100) / minLength, 55);
         strength += lengthScore;
         
         // Diversidad de caracteres (máximo 60 puntos)
-        if (password.matches(".*[A-Z].*")) strength += 15;
-        if (password.matches(".*[a-z].*")) strength += 15;  
-        if (password.matches(".*[0-9].*")) strength += 15;
+        if (password.matches(".*[A-Z].*")) strength += 10;
+        if (password.matches(".*[a-z].*")) strength += 10;  
+        if (password.matches(".*[0-9].*")) strength += 10;
         
         String specialChars = (String) config.get("allowedSpecialChars");
         if (password.matches(".*[" + Pattern.quote(specialChars) + "].*")) strength += 15;

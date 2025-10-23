@@ -82,6 +82,16 @@ public class User {
     @Builder.Default
     private boolean requiresPasswordChange = false;
 
+    @Column(name = "estado_gmail", length = 20)
+    @Builder.Default
+    private String estadoGmail = "pendiente";
+
+    @Column(name = "token_verificacion", length = 255)
+    private String tokenVerificacion;
+
+    @Column(name = "expiracion_token_verificacion")
+    private Timestamp expiracionTokenVerificacion;
+
     @PrePersist
     protected void onCreate() {
         if (creado_en == null) {
@@ -241,6 +251,17 @@ public class User {
 
     public void setRequiresPasswordChange(boolean requiresPasswordChange) {
         this.requiresPasswordChange = requiresPasswordChange;
+    }
+
+    public String getEstadoGmail() { return estadoGmail; }
+    public void setEstadoGmail(String estadoGmail) { this.estadoGmail = estadoGmail; }
+
+    public String getTokenVerificacion() { return tokenVerificacion; }
+    public void setTokenVerificacion(String tokenVerificacion) { this.tokenVerificacion = tokenVerificacion; }
+
+    public Timestamp getExpiracionTokenVerificacion() { return expiracionTokenVerificacion; }
+    public void setExpiracionTokenVerificacion(Timestamp expiracionTokenVerificacion) { 
+        this.expiracionTokenVerificacion = expiracionTokenVerificacion; 
     }
 
 }
