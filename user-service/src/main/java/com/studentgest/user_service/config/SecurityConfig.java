@@ -53,8 +53,10 @@ public class SecurityConfig {
                     "/api/captcha/**", 
                     "/api/email-verification/**", 
                     "/api/password-strength/**", 
-                    "/api/email/**",  // 👈 SIMPLIFICADO: todos los endpoints de email
-                    "/api/app-config/**"
+                    "/api/email/**",  
+                    "/api/app-config/**",
+                    "/api/password-recovery/**",
+                    "/api/password-change/policy" 
                 ).permitAll()
                 
                 // ✅ REGISTRO DE USUARIOS

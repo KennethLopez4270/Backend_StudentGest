@@ -332,7 +332,7 @@ public class UserService {
             }
             
             // Verificar que no esté en el historial
-            if (passwordHistoryService.isPasswordInHistory(userId, nuevaPasswordHash)) {
+            if (passwordHistoryService.isPasswordInHistory(userId, nuevaPassword)) {
                 Map<String, Object> config = securityConfigService.loadSecurityConfig();
                 int historySize = (Integer) config.get("passwordHistorySize");
                 throw new IllegalArgumentException("No puede reutilizar las últimas " + historySize + " contraseñas");
@@ -373,7 +373,7 @@ public class UserService {
                 String nuevaPasswordHash = passwordEncoder.encode(userDetails.getPassword());
                 
                 // ✅ NUEVO: Verificar que no esté en el historial
-                if (passwordHistoryService.isPasswordInHistory(id, nuevaPasswordHash)) {
+                if (passwordHistoryService.isPasswordInHistory(id, userDetails.getPassword())) {
                     throw new IllegalArgumentException("No puede reutilizar contraseñas anteriores");
                 }
                 

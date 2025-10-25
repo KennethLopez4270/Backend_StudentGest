@@ -400,4 +400,51 @@ public class EmailService {
         
         return emailSent;
     }
+    // Asegúrate de tener esta inyección en tu EmailService
+@Autowired
+private JavaMailSender javaMailSender;
+
+// Agregar estos métodos a tu EmailService existente
+public boolean sendPasswordRecoveryEmail(String toEmail, String userName, String recoveryLink) {
+    try {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(toEmail);
+        message.setSubject("Recuperación de Contraseña - StudentGest");
+        message.setText(
+            "Hola " + userName + ",\n\n" +
+            "Has solicitado restablecer tu contraseña en StudentGest.\n\n" +
+            "Para restablecer tu contraseña, haz clic en el siguiente enlace:\n" +
+            recoveryLink + "\n\n" +
+            "Este enlace expirará en 24 horas.\n\n" +
+            "Si no solicitaste este cambio, puedes ignorar este mensaje.\n\n" +
+            "Saludos,\nEquipo StudentGest"
+        );
+        
+        javaMailSender.send(message);
+        return true;
+    } catch (Exception e) {
+        logger.error("Error enviando email de recuperación: {}", e.getMessage());
+        return false;
+    }
+}
+
+public boolean sendPasswordChangedNotification(String toEmail, String userName) {
+    try {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(toEmail);
+        message.setSubject("Contraseña Actualizada - StudentGest");
+        message.setText(
+            "Hola " + userName + ",\n\n" +
+            "Tu contraseña en StudentGest ha sido actualizada exitosamente.\n\n" +
+            "Si no realizaste este cambio, por favor contacta inmediatamente al administrador.\n\n" +
+            "Saludos,\nEquipo StudentGest"
+        );
+        
+        javaMailSender.send(message);
+        return true;
+    } catch (Exception e) {
+        logger.error("Error enviando notificación de cambio de contraseña: {}", e.getMessage());
+        return false;
+    }
+}
 }

@@ -15,8 +15,9 @@ public interface PasswordHistoryRepository extends JpaRepository<PasswordHistory
     // Encontrar historial de contraseñas por usuario, ordenado por fecha descendente
     List<PasswordHistory> findByUserIdOrderByCreatedAtDesc(Integer userId);
     
-    // Método corregido - usar @Query en lugar del nombre del método automático
-    @Query("SELECT ph FROM PasswordHistory ph WHERE ph.userId = :userId ORDER BY ph.createdAt DESC")
+    // Método corregido - usar @Query para obtener las últimas 5
+    @Query(value = "SELECT * FROM password_history WHERE user_id = :userId ORDER BY created_at DESC LIMIT 5", 
+           nativeQuery = true)
     List<PasswordHistory> findTop5ByUserId(@Param("userId") Integer userId);
     
     // Eliminar contraseñas antiguas (más de las últimas 5)
