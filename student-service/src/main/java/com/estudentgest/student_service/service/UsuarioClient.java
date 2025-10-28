@@ -12,15 +12,23 @@ public class UsuarioClient {
     @Value("${user-service.base-url}")
     private String userServiceBaseUrl;
 
-    @Autowired
-    private RestTemplate restTemplate;
+    private final RestTemplate restTemplate;
+
+    public UsuarioClient(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
 
     public UsuarioDTO getUsuarioById(Long idUsuario) {
         try {
-            return restTemplate.getForObject(userServiceBaseUrl + "/" + idUsuario, UsuarioDTO.class);
+            String url = userServiceBaseUrl + "/" + idUsuario;
+            System.out.println("LLAMANDO A: " + url); // DEBUG
+            UsuarioDTO response = restTemplate.getForObject(url, UsuarioDTO.class);
+            System.out.println("RESPUESTA: " + response); // DEBUG
+            return response;
         } catch (Exception e) {
-            return null; // luego cambiar a loguear el error
+            System.err.println("ERROR AL LLAMAR USER-SERVICE: " + e.getMessage());
+            e.printStackTrace();
+            return null;
         }
     }
 }
-

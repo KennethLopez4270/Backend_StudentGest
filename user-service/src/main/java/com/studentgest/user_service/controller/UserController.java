@@ -60,9 +60,11 @@ public class UserController {
     @GetMapping("/{id}")
     public Map<String, Object> getUserById(@PathVariable Integer id) {
         try {
-            Optional<User> user = userService.getUserById(id);
-            if (user.isPresent()) {
-                User u = user.get();
+            Optional<User> userOpt = userService.getUserById(id);
+            if (userOpt.isPresent()) {
+                User u = userOpt.get();
+
+                // CREAMOS EL MAP IGUAL QUE EN getAllUsers()
                 Map<String, Object> userMap = new HashMap<>();
                 userMap.put("id_usuario", u.getId_usuario());
                 userMap.put("nombre", u.getNombre());
@@ -71,14 +73,30 @@ public class UserController {
                 userMap.put("email", u.getEmail());
                 userMap.put("password", u.getPassword());
                 userMap.put("id_rol", u.getId_rol());
-                userMap.put("rol", u.getRol() != null ? u.getRol().getNombre() : null);
-                userMap.put("estado", u.getEstado());
+                userMap.put("estado", u.getEstado() != null ? u.getEstado().name() : null);
                 userMap.put("foto", u.getFoto());
-                userMap.put("creado_en", u.getCreado_en());
+                userMap.put("creado_en", u.getCreado_en() != null ? u.getCreado_en().toString() : null);
                 userMap.put("activo", u.isActivo());
+
+                // AÑADIMOS EL ROL (IGUAL QUE EN getAllUsers)
+                Integer idRol = u.getId_rol();
+                if (idRol != null) {
+                    try {
+                        String rolNombre = rolRepository.findById(idRol)
+                                .map(Rol::getNombre)
+                                .orElse("Sin rol");
+                        userMap.put("rol", rolNombre);
+                    } catch (Exception e) {
+                        userMap.put("rol", "Sin rol");
+                        logger.warn("No se pudo obtener el nombre del rol para id_rol: {}", idRol, e);
+                    }
+                } else {
+                    userMap.put("rol", "Sin rol");
+                }
+
                 return userMap;
             }
-            return Map.of();
+            return Map.of(); // Vacío si no existe
         } catch (Exception e) {
             logger.error("Error al obtener usuario con ID: {}", id, e);
             return Map.of();
