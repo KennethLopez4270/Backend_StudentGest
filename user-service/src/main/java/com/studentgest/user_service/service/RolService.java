@@ -2,10 +2,12 @@ package com.studentgest.user_service.service;
 
 import com.studentgest.user_service.model.*;
 import com.studentgest.user_service.model.EstadoUsuario;
+import com.studentgest.user_service.repository.FuncionalidadRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -399,5 +401,27 @@ public class RolService {
             logger.error("Error al verificar si la funcionalidad es protegida con ID: {}", id, e);
             return false;
         }
+    }
+
+    @Autowired
+    private FuncionalidadRepository funcionalidadRepository;
+
+    public List<Map<String, Object>> getAllFunctionalities() {
+        return funcionalidadRepository.findAll().stream().map(func -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id_funcionalidad", func.getIdFuncionalidad());
+            map.put("nombre", func.getNombre());
+            map.put("descripcion", func.getDescripcion());
+            map.put("direccion", func.getDireccion());
+            return map;
+        }).collect(Collectors.toList());
+    }
+
+    public void removeFunctionalityFromRole(Integer roleId, Integer functionalityId) {
+        String sql = "DELETE FROM roles_funcionalidades WHERE id_rol = :roleId AND id_funcionalidad = :funcId";
+        entityManager.createNativeQuery(sql)
+                .setParameter("roleId", roleId)
+                .setParameter("funcId", functionalityId)
+                .executeUpdate();
     }
 }

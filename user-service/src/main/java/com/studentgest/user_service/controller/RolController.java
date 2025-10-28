@@ -156,4 +156,30 @@ public class RolController {
             return Map.of("message", "Error al asignar funcionalidad: " + e.getMessage());
         }
     }
+
+    // GET ALL FUNCTIONALITIES
+    @GetMapping("/functionalities")
+    public List<Map<String, Object>> getAllFunctionalities() {
+        try {
+            return rolService.getAllFunctionalities();
+        } catch (Exception e) {
+            logger.error("Error al obtener todas las funcionalidades", e);
+            return List.of();
+        }
+    }
+
+    // Remove functionality from role
+    @DeleteMapping("/{roleId}/functionalities/{functionalityId}")
+    public Map<String, String> removeFunctionalityFromRole(
+            @PathVariable Integer roleId,
+            @PathVariable Integer functionalityId
+    ) {
+        try {
+            rolService.removeFunctionalityFromRole(roleId, functionalityId);
+            return Map.of("message", "Funcionalidad desasignada correctamente");
+        } catch (Exception e) {
+            logger.error("Error al desasignar funcionalidad {} del rol {}", functionalityId, roleId, e);
+            return Map.of("message", "Error al desasignar: " + e.getMessage());
+        }
+    }
 }
