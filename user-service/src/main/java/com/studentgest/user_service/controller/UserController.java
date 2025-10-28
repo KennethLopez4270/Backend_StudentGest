@@ -3,26 +3,21 @@ package com.studentgest.user_service.controller;
 import com.studentgest.user_service.model.EstadoUsuario;
 import com.studentgest.user_service.model.Rol;
 import com.studentgest.user_service.model.User;
-import com.studentgest.user_service.security.JwtUtil;
-import com.studentgest.user_service.service.PasswordPolicyService;
-import com.studentgest.user_service.service.SecurityConfigService;
 import com.studentgest.user_service.service.UserService;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
+import com.studentgest.user_service.repository.RolRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.util.HtmlUtils;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/users")
@@ -34,255 +29,333 @@ public class UserController {
     private UserService userService;
 
     @Autowired
-    private NotificacionClient notificacionClient;
+    private RolRepository rolRepository; // Inyectar RolRepository
 
-    @Autowired
-    private PasswordPolicyService passwordPolicyService;
+    private final RestTemplate restTemplate = new RestTemplate();
+    private final String notificationUrl = "http://localhost:8080/api/notifications";
 
-    @Autowired  
-    private SecurityConfigService securityConfigService;
-
-    @Autowired
-    private JwtUtil jwtUtil;
-
-    // =============================================
-    // ENDPOINTS PÚBLICOS Y DE DEBUG (AL INICIO)
-    // =============================================
-
-    @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> credentials, HttpServletRequest request) {
+    @GetMapping
+    public List<Map<String, Object>> getAllUsers() {
         try {
-            String email = sanitizeEmail(credentials.get("email"));
-            String password = credentials.get("password");
-            String ipAddress = getClientIp(request);
-
-            if (email == null || password == null) {
-                return ResponseEntity.badRequest().body(Map.of(
-                    "success", false,
-                    "message", "Email y contraseña son requeridos"
-                ));
-            }
-
-            Map<String, Object> result = userService.login(email, password, ipAddress);
-
-            if (Boolean.TRUE.equals(result.get("success"))) {
-                return ResponseEntity.ok(result);
-            } else {
-                return ResponseEntity.status(401).body(result);
-            }
+            List<Map<String, Object>> users = userService.getAllUsers();
+            return users.stream().map(user -> {
+                Map<String, Object> userMap = new HashMap<>(user);
+                Integer idRol = (Integer) user.get("id_rol"); // Puede ser null
+                if (idRol != null) {
+                    try {
+                        String rolNombre = rolRepository.findById(idRol) // Usar la instancia inyectada
+                                .map(Rol::getNombre)
+                                .orElse("Sin rol");
+                        userMap.put("rol", rolNombre);
+                    } catch (Exception e) {
+                        userMap.put("rol", "Sin rol");
+                        logger.warn("No se pudo obtener el nombre del rol para id_rol: {}", idRol, e);
+                    }
+                } else {
+                    userMap.put("rol", "Sin rol"); // Manejo explícito cuando id_rol es null
+                }
+                return userMap;
+            }).collect(Collectors.toList());
         } catch (Exception e) {
-            logger.error("Error en el proceso de login", e);
-            return ResponseEntity.status(500).body(Map.of(
-                "success", false,
-                "message", "Error interno del servidor durante el login"
-            ));
+            logger.error("Error al obtener todos los usuarios", e);
+            return List.of();
+        }
+    }
+
+    @GetMapping("/{id}")
+    public Map<String, Object> getUserById(@PathVariable Integer id) {
+        try {
+            Optional<User> user = userService.getUserById(id);
+            if (user.isPresent()) {
+                User u = user.get();
+                Map<String, Object> userMap = new HashMap<>();
+                userMap.put("id_usuario", u.getId_usuario());
+                userMap.put("nombre", u.getNombre());
+                userMap.put("apellido_paterno", u.getApellido_paterno());
+                userMap.put("apellido_materno", u.getApellido_materno());
+                userMap.put("email", u.getEmail());
+                userMap.put("password", u.getPassword());
+                userMap.put("id_rol", u.getId_rol());
+                userMap.put("rol", u.getRol() != null ? u.getRol().getNombre() : null);
+                userMap.put("estado", u.getEstado());
+                userMap.put("foto", u.getFoto());
+                userMap.put("creado_en", u.getCreado_en());
+                userMap.put("activo", u.isActivo());
+                return userMap;
+            }
+            return Map.of();
+        } catch (Exception e) {
+            logger.error("Error al obtener usuario con ID: {}", id, e);
+            return Map.of();
+        }
+    }
+
+    @GetMapping("/activos")
+    public List<User> getUsuariosActivos() {
+        try {
+            return userService.getUsuariosActivos();
+        } catch (Exception e) {
+            logger.error("Error al obtener usuarios activos", e);
+            return List.of();
+        }
+    }
+
+    @GetMapping("/rol/{rol}")
+    public List<User> getUsuariosPorRol(@PathVariable String rol) {
+        try {
+            return userService.getUsuariosPorRol(rol);
+        } catch (Exception e) {
+            logger.error("Error al obtener usuarios por rol: {}", rol, e);
+            return List.of();
         }
     }
 
     @PostMapping
-    public ResponseEntity<?> createUser(@RequestBody @Valid User user, HttpServletRequest request) {
+    public User createUser(@RequestBody User user) {
         try {
-            logger.info("=== INICIANDO REGISTRO ===");
-            logger.info("Email: {}", user.getEmail());
-            logger.info("Nombre: {}", user.getNombre());
-            logger.info("Apellido Paterno: {}", user.getApellido_paterno());
-            logger.info("Apellido Materno: {}", user.getApellido_materno());
-            logger.info("Rol: {}", user.getRol());
-            logger.info("Password length: {}", user.getPassword() != null ? user.getPassword().length() : "null");
-
-            // Sanitizar y normalizar inputs
-            user.setNombre(sanitizeInput(user.getNombre()));
-            user.setApellido_paterno(sanitizeInput(user.getApellido_paterno()));
-            user.setApellido_materno(sanitizeInput(user.getApellido_materno()));
-            user.setEmail(sanitizeEmail(user.getEmail()));
-
-            logger.info("✅ Datos sanitizados, llamando a userService...");
-            
-            User savedUser = userService.createUser(user);
-            
-            logger.info("✅ Usuario creado exitosamente: {}", savedUser.getEmail());
-            logger.info("✅ ID generado: {}", savedUser.getId_usuario());
-            logger.info("✅ Estado: {}", savedUser.getEstado());
-
-            return ResponseEntity.ok(Map.of(
-                "success", true,
-                "message", "Usuario registrado exitosamente",
-                "user", Map.of(
-                    "id", savedUser.getId_usuario(),
-                    "nombre", savedUser.getNombre(),
-                    "email", savedUser.getEmail(),
-                    "rol", savedUser.getRol(),
-                    "estado", savedUser.getEstado()
-                )
-            ));
-
-        } catch (IllegalArgumentException e) {
-            logger.error("❌ Error de validación: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(Map.of(
-                "success", false,
-                "error", "Error de validación",
-                "message", e.getMessage()
-            ));
-        } catch (DataIntegrityViolationException e) {
-            logger.error("❌ Error de base de datos: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(Map.of(
-                "success", false,
-                "error", "Error de base de datos",
-                "message", "El email ya está en uso"
-            ));
+            return userService.createUser(user);
         } catch (Exception e) {
-            logger.error("💥 ERROR INTERNO: {}", e.getMessage(), e);
-            e.printStackTrace();
-            return ResponseEntity.status(500).body(Map.of(
-                "success", false,
-                "error", "Error interno del servidor",
-                "message", e.getMessage() != null ? e.getMessage() : "Error desconocido",
-                "details", e.getClass().getName()
-            ));
+            logger.error("Error al crear usuario", e);
+            throw new RuntimeException("Error al crear usuario: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}")
+    public Map<String, Object> updateUser(@PathVariable Integer id, @RequestBody Map<String, Object> userDetails) {
+        try {
+            Optional<User> userOptional = userService.getUserById(id);
+            if (!userOptional.isPresent()) {
+                throw new RuntimeException("Usuario no encontrado con ID: " + id);
+            }
+            User user = userOptional.get();
+            if (userDetails.containsKey("nombre")) {
+                user.setNombre((String) userDetails.get("nombre"));
+            }
+            if (userDetails.containsKey("apellido_paterno")) {
+                user.setApellido_paterno((String) userDetails.get("apellido_paterno"));
+            }
+            if (userDetails.containsKey("apellido_materno")) {
+                user.setApellido_materno((String) userDetails.get("apellido_materno"));
+            }
+            if (userDetails.containsKey("email")) {
+                user.setEmail((String) userDetails.get("email"));
+            }
+            if (userDetails.containsKey("password")) {
+                user.setPassword((String) userDetails.get("password"));
+            }
+            if (userDetails.containsKey("id_rol")) {
+                user.setId_rol((Integer) userDetails.get("id_rol"));
+            }
+            if (userDetails.containsKey("estado")) {
+                user.setEstado(userDetails.get("estado") != null ? EstadoUsuario.valueOf((String) userDetails.get("estado")) : null);
+            }
+            if (userDetails.containsKey("foto")) {
+                user.setFoto((String) userDetails.get("foto"));
+            }
+            if (userDetails.containsKey("activo")) {
+                user.setActivo((Boolean) userDetails.get("activo"));
+            }
+            User updatedUser = userService.updateUser(id, user);
+            Map<String, Object> userMap = new HashMap<>();
+            userMap.put("id_usuario", updatedUser.getId_usuario());
+            userMap.put("nombre", updatedUser.getNombre());
+            userMap.put("apellido_paterno", updatedUser.getApellido_paterno());
+            userMap.put("apellido_materno", updatedUser.getApellido_materno());
+            userMap.put("email", updatedUser.getEmail());
+            userMap.put("password", updatedUser.getPassword());
+            userMap.put("id_rol", updatedUser.getId_rol());
+            userMap.put("rol", updatedUser.getRol() != null ? updatedUser.getRol().getNombre() : null);
+            userMap.put("estado", updatedUser.getEstado());
+            userMap.put("foto", updatedUser.getFoto());
+            userMap.put("creado_en", updatedUser.getCreado_en());
+            userMap.put("activo", updatedUser.isActivo());
+            return userMap;
+        } catch (RuntimeException e) {
+            logger.error("Error al actualizar usuario con ID: {}", id, e);
+            throw e;
+        }
+    }
+
+    @PostMapping("/login")
+    public Map<String, Object> login(@RequestBody Map<String, String> credentials) {
+        try {
+            String email = credentials.get("email");
+            String password = credentials.get("password");
+            if (email == null || email.isEmpty() || password == null || password.isEmpty()) {
+                logger.warn("Credenciales inválidas: email='{}', password='{}'", email, password);
+                return Map.of("message", "Email y contraseña son requeridos");
+            }
+            Map<String, Object> response = userService.login(email, password);
+            if (Boolean.TRUE.equals(response.get("success"))) {
+                Map<String, Object> adjustedResponse = new HashMap<>();
+                adjustedResponse.put("id", response.get("id"));
+                adjustedResponse.put("nombre", response.get("nombre"));
+                adjustedResponse.put("apellido_paterno", response.get("apellido_paterno"));
+                adjustedResponse.put("apellido_materno", response.get("apellido_materno"));
+                adjustedResponse.put("email", response.get("email"));
+                adjustedResponse.put("rol", response.get("rol"));
+                adjustedResponse.put("id_rol", response.get("id_rol")); // Agregado para incluir id_rol
+                adjustedResponse.put("foto", response.get("foto"));
+                return adjustedResponse;
+            } else {
+                return Map.of("message", response.get("message"));
+            }
+        } catch (Exception e) {
+            logger.error("Error al procesar login para email: {}", credentials.get("email"), e);
+            return Map.of("message", "Error al iniciar sesión: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/me")
+    public Map<String, String> getRolUsuario(@RequestParam Integer id) {
+        try {
+            Map<String, String> response = userService.getRolUsuario(id);
+            if ("true".equals(response.get("success"))) {
+                return Map.of("rol", response.get("rol"));
+            }
+            return Map.of("message", response.get("message"));
+        } catch (Exception e) {
+            logger.error("Error al obtener rol para usuario con ID: {}", id, e);
+            return Map.of("message", "Error al obtener rol");
         }
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> body, HttpServletRequest request) {
+    public Map<String, String> resetPassword(@RequestBody Map<String, String> body) {
         try {
-            String email = sanitizeEmail(body.get("email"));
-            String ipAddress = getClientIp(request);
-
-            if (email == null) {
-                return ResponseEntity.badRequest().body(Map.of(
-                    "success", false,
-                    "message", "Email es requerido"
-                ));
-            }
-
-            Optional<User> userOptional = userService.getUserByEmail(email);
-            if (userOptional.isPresent()) {
-                User user = userOptional.get();
-                String newPassword = generateTemporaryPassword();
-
-                try {
-                    userService.forzarCambioPassword(user.getId_usuario(), newPassword, ipAddress);
-
-                    // Enviar notificación
-                    notificacionClient.enviarNotificacionResetPassword(email, user.getNombre(), newPassword);
-
-                    return ResponseEntity.ok(Map.of(
-                        "success", true,
-                        "message", "Se ha enviado un correo con la nueva contraseña."
-                    ));
-                } catch (IllegalArgumentException e) {
-                    return ResponseEntity.badRequest().body(Map.of(
-                        "success", false,
-                        "error", e.getMessage()
-                    ));
+            String email = body.get("email");
+            Map<String, String> response = userService.resetPassword(email);
+            if ("true".equals(response.get("success"))) {
+                Optional<User> userOptional = userService.getUserByEmail(email);
+                if (userOptional.isPresent()) {
+                    User user = userOptional.get();
+                    Map<String, String> notificationBody = new HashMap<>();
+                    notificationBody.put("to", email);
+                    notificationBody.put("nombre", user.getNombre());
+                    notificationBody.put("nuevaPassword", "ABCabc1234!");
+                    try {
+                        restTemplate.postForObject(notificationUrl + "/reset-password", notificationBody, String.class);
+                    } catch (Exception e) {
+                        logger.warn("Error al enviar notificación de reset-password para email: {}", email, e);
+                    }
                 }
-            } else {
-                return ResponseEntity.badRequest().body(Map.of(
-                    "success", false,
-                    "message", "Usuario no encontrado con ese correo."
-                ));
+                return Map.of("message", "Se ha enviado un correo con la nueva contraseña.");
             }
+            return Map.of("message", response.get("message"));
         } catch (Exception e) {
             logger.error("Error al resetear contraseña", e);
-            return ResponseEntity.status(500).body(Map.of(
-                "success", false,
-                "message", "Error interno del servidor"
-            ));
+            return Map.of("message", "Error al resetear la contraseña");
         }
     }
 
-    @PostMapping("/debug-login")
-    public ResponseEntity<?> debugLogin(@RequestBody Map<String, String> credentials, @Autowired PasswordEncoder passwordEncoder) {
+    @PutMapping("/desactivar/{id}")
+    public Map<String, String> desactivarUsuario(@PathVariable Integer id) {
         try {
-            String email = credentials.get("email");
-            String password = credentials.get("password");
-
-            logger.info("=== DEBUG LOGIN ===");
-            logger.info("Email: {}", email);
-
-            Optional<User> userOptional = userService.getUserByEmail(email);
-
-            if (userOptional.isEmpty()) {
-                logger.warn("❌ Usuario no encontrado");
-                return ResponseEntity.status(401).body(Map.of(
-                    "success", false,
-                    "message", "Usuario no encontrado",
-                    "debug", "No existe usuario con ese email"
-                ));
-            }
-
-            User user = userOptional.get();
-            logger.info("✅ Usuario encontrado: {}", user.getEmail());
-            logger.info("📝 Estado: {}", user.getEstado());
-            logger.info("🔓 Activo: {}", user.isActivo());
-            logger.info("🔐 Contraseña en DB: {}", user.getPassword());
-            logger.info("🔑 Longitud password: {}", user.getPassword() != null ? user.getPassword().length() : "null");
-
-            // Verificar contraseña
-            boolean passwordMatch = false;
-            try {
-                passwordMatch = passwordEncoder.matches(password, user.getPassword());
-                logger.info("🔍 ¿Coincide contraseña?: {}", passwordMatch);
-            } catch (Exception e) {
-                logger.error("❌ Error al verificar contraseña: {}", e.getMessage());
-                return ResponseEntity.status(500).body(Map.of(
-                    "success", false,
-                    "message", "Error interno",
-                    "debug", e.getMessage()
-                ));
-            }
-
-            if (!EstadoUsuario.APROBADO.equals(user.getEstado())) {
-                logger.warn("❌ Usuario no aprobado");
-                return ResponseEntity.status(401).body(Map.of(
-                    "success", false,
-                    "message", "Usuario no aprobado",
-                    "debug", "Estado actual: " + user.getEstado()
-                ));
-            }
-
-            if (!user.isActivo()) {
-                logger.warn("❌ Usuario inactivo");
-                return ResponseEntity.status(401).body(Map.of(
-                    "success", false,
-                    "message", "Usuario inactivo",
-                    "debug", "Usuario marcado como inactivo"
-                ));
-            }
-
-            if (passwordMatch) {
-                logger.info("🎉 Login exitoso");
-                return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "message", "Login exitoso (debug)",
-                    "debug", "Todo correcto"
-                ));
-            } else {
-                logger.warn("❌ Contraseña incorrecta");
-                return ResponseEntity.status(401).body(Map.of(
-                    "success", false,
-                    "message", "Contraseña incorrecta",
-                    "debug", "La contraseña no coincide"
-                ));
-            }
-
+            userService.desactivarUsuario(id);
+            return Map.of("message", "Usuario desactivado correctamente.");
+        } catch (NoSuchElementException e) {
+            logger.error("Usuario no encontrado para desactivar", e);
+            return Map.of("message", "Usuario no encontrado con ese ID.");
         } catch (Exception e) {
-            logger.error("💥 Error en debug: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).body(Map.of(
-                "success", false,
-                "message", "Error interno",
-                "debug", e.getMessage()
-            ));
+            logger.error("Error al desactivar usuario", e);
+            return Map.of("message", "Error al desactivar el usuario.");
         }
     }
 
-    @GetMapping("/test-cors")
-    public ResponseEntity<?> testCors() {
-        logger.info("=== TEST CORS ENDPOINT LLAMADO ===");
-        return ResponseEntity.ok(Map.of(
-            "message", "CORS test exitoso",
-            "timestamp", System.currentTimeMillis()
-        ));
+    @PutMapping("/activar/{id}")
+    public Map<String, String> activarUsuario(@PathVariable Integer id) {
+        try {
+            userService.activarUsuario(id);
+            Optional<User> userOptional = userService.getUserById(id);
+            if (userOptional.isPresent()) {
+                User user = userOptional.get();
+                if (user.isActivo() && user.getEstado() == EstadoUsuario.APROBADO) {
+                    Map<String, String> notificationBody = new HashMap<>();
+                    notificationBody.put("to", user.getEmail());
+                    notificationBody.put("nombre", user.getNombre());
+                    try {
+                        restTemplate.postForObject(notificationUrl + "/activate-account", notificationBody, String.class);
+                        logger.info("Notificación de activación enviada para usuario con ID: {}", id);
+                    } catch (Exception e) {
+                        logger.warn("Error al enviar notificación de activación para usuario con ID: {}. Continuando sin notificación.", id, e);
+                    }
+                }
+            }
+            return Map.of("message", "Usuario activado correctamente.");
+        } catch (NoSuchElementException e) {
+            logger.error("Usuario no encontrado para activar con ID: {}", id, e);
+            return Map.of("message", "Usuario no encontrado con ese ID.");
+        } catch (IllegalStateException e) {
+            logger.warn("No se puede activar usuario con ID: {} - {}", id, e.getMessage());
+            return Map.of("message", e.getMessage());
+        } catch (Exception e) {
+            logger.error("Error al activar usuario con ID: {}", id, e);
+            return Map.of("message", "Error al activar el usuario.");
+        }
+    }
+
+    @PutMapping("/aprobar/{id}")
+    public Map<String, String> aprobarUsuario(@PathVariable Integer id) {
+        try {
+            userService.aprobarUsuario(id);
+            Optional<User> userOptional = userService.getUserById(id);
+            if (userOptional.isPresent()) {
+                User user = userOptional.get();
+                if (user.getEstado() == EstadoUsuario.APROBADO) {
+                    Map<String, String> notificationBody = new HashMap<>();
+                    notificationBody.put("to", user.getEmail());
+                    notificationBody.put("nombre", user.getNombre());
+                    try {
+                        restTemplate.postForObject(notificationUrl + "/approve-account", notificationBody, String.class);
+                        logger.info("Notificación de aprobación enviada para usuario con ID: {}", id);
+                    } catch (Exception e) {
+                        logger.warn("Error al enviar notificación de aprobación para usuario con ID: {}. Continuando sin notificación.", id, e);
+                    }
+                }
+            }
+            return Map.of("message", "Usuario aprobado correctamente.");
+        } catch (NoSuchElementException e) {
+            logger.error("Usuario no encontrado para aprobar con ID: {}", id, e);
+            return Map.of("message", "Usuario no encontrado con ese ID.");
+        } catch (IllegalStateException e) {
+            logger.warn("No se puede aprobar usuario con ID: {} - {}", id, e.getMessage());
+            return Map.of("message", e.getMessage());
+        } catch (Exception e) {
+            logger.error("Error al aprobar usuario con ID: {}", id, e);
+            return Map.of("message", "Error al aprobar el usuario.");
+        }
+    }
+
+    @PutMapping("/desaprobar/{id}")
+    public Map<String, String> desaprobarUsuario(@PathVariable Integer id) {
+        try {
+            userService.desaprobarUsuario(id);
+            Optional<User> userOptional = userService.getUserById(id);
+            if (userOptional.isPresent()) {
+                User user = userOptional.get();
+                if (user.getEstado() == EstadoUsuario.RECHAZADO) {
+                    Map<String, String> notificationBody = new HashMap<>();
+                    notificationBody.put("to", user.getEmail());
+                    notificationBody.put("nombre", user.getNombre());
+                    try {
+                        restTemplate.postForObject(notificationUrl + "/reject-account", notificationBody, String.class);
+                        logger.info("Notificación de desaprobación enviada para usuario con ID: {}", id);
+                    } catch (Exception e) {
+                        logger.warn("Error al enviar notificación de desaprobación para usuario con ID: {}. Continuando sin notificación.", id, e);
+                    }
+                }
+            }
+            return Map.of("message", "Usuario desaprobado correctamente.");
+        } catch (NoSuchElementException e) {
+            logger.error("Usuario no encontrado para desaprobar con ID: {}", id, e);
+            return Map.of("message", "Usuario no encontrado con ese ID.");
+        } catch (IllegalStateException e) {
+            logger.warn("No se puede desaprobar usuario con ID: {} - {}", id, e.getMessage());
+            return Map.of("message", e.getMessage());
+        } catch (Exception e) {
+            logger.error("Error al desaprobar usuario con ID: {}", id, e);
+            return Map.of("message", "Error al desaprobar el usuario.");
+        }
     }
     
     // =============================================

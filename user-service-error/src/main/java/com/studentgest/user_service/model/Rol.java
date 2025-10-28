@@ -1,8 +1,6 @@
 package com.studentgest.user_service.model;
 
 import jakarta.persistence.*;
-import java.util.HashSet;
-import java.util.Set;
 
 @Entity
 @Table(name = "roles")
@@ -13,22 +11,19 @@ public class Rol {
     @Column(name = "id_rol")
     private Integer idRol;
 
-    @Column(name = "nombre")
+    @Column(name = "nombre", nullable = false, length = 50)
     private String nombre;
 
-    @Column(name = "descripcion")
+    @Column(name = "descripcion", columnDefinition = "TEXT")
     private String descripcion;
 
-    @OneToMany(mappedBy = "rol")
-    private Set<RolesFuncionalidades> rolesFuncionalidades = new HashSet<>();
-
-    // Getters y setters
+    // Getters y Setters
     public Integer getIdRol() { return idRol; }
     public void setIdRol(Integer idRol) { this.idRol = idRol; }
+
     public String getNombre() { return nombre; }
     public void setNombre(String nombre) { this.nombre = nombre; }
+
     public String getDescripcion() { return descripcion; }
     public void setDescripcion(String descripcion) { this.descripcion = descripcion; }
-    public Set<RolesFuncionalidades> getRolesFuncionalidades() { return rolesFuncionalidades; }
-    public void setRolesFuncionalidades(Set<RolesFuncionalidades> rolesFuncionalidades) { this.rolesFuncionalidades = rolesFuncionalidades; }
 }
