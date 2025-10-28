@@ -5,6 +5,8 @@ import com.studentgest.user_service.model.Rol;
 import com.studentgest.user_service.model.User;
 import com.studentgest.user_service.repository.RolRepository;
 import com.studentgest.user_service.repository.UserRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,15 +29,42 @@ public class UserService {
     @Autowired
     private RolRepository rolRepository;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
     @Transactional(readOnly = true)
-    public List<User> getAllUsers() {
-        List<User> users = repository.findAll();
-        logger.debug("Recuperados {} usuarios de la base de datos", users.size());
-        users.forEach(user -> logger.debug("Usuario: id={}, email={}, id_rol={}, rol={}, estado={}",
-                user.getId_usuario(), user.getEmail(), user.getId_rol(),
-                user.getRol() != null ? user.getRol().getNombre() : "Sin rol",
-                user.getEstado()));
-        return users;
+    public List<Map<String, Object>> getAllUsers() {
+        try {
+            logger.debug("Iniciando recuperación de todos los usuarios");
+            List<Object[]> results = entityManager.createQuery(
+                            "SELECT u.id_usuario, u.nombre, u.apellido_paterno, u.apellido_materno, u.email, u.password, " +
+                                    "u.id_rol, u.estado, u.foto, u.creado_en, u.activo FROM User u", Object[].class)
+                    .getResultList();
+
+            List<Map<String, Object>> users = new ArrayList<>();
+            for (Object[] result : results) {
+                Map<String, Object> userMap = new HashMap<>();
+                userMap.put("id_usuario", result[0]);
+                userMap.put("nombre", result[1]);
+                userMap.put("apellido_paterno", result[2]);
+                userMap.put("apellido_materno", result[3]);
+                userMap.put("email", result[4]);
+                userMap.put("password", result[5]);
+                userMap.put("id_rol", result[6]); // Puede ser null
+                userMap.put("estado", result[7] != null ? result[7].toString() : null);
+                userMap.put("foto", result[8]);
+                userMap.put("creado_en", result[9]);
+                userMap.put("activo", result[10]);
+                users.add(userMap);
+            }
+            logger.debug("Recuperados {} usuarios de la base de datos", users.size());
+            users.forEach(user -> logger.debug("Usuario: id={}, email={}, id_rol={}, estado={}",
+                    user.get("id_usuario"), user.get("email"), user.get("id_rol"), user.get("estado")));
+            return users;
+        } catch (Exception e) {
+            logger.error("Error al obtener todos los usuarios", e);
+            return new ArrayList<>();
+        }
     }
 
     @Transactional(readOnly = true)
@@ -143,8 +172,7 @@ public class UserService {
                 return Map.of("success", false, "message", "Credenciales incorrectas");
             }
             User user = userOptional.get();
-            logger.debug("Usuario encontrado: id={}, estado={}, activo={}",
-                    user.getId_usuario(), user.getEstado(), user.isActivo());
+            logger.debug("Usuario encontrado: id={}, estado={}, activo={}", user.getId_usuario(), user.getEstado(), user.isActivo());
             if (!EstadoUsuario.APROBADO.equals(user.getEstado())) {
                 logger.warn("Usuario no aprobado: id={}, estado={}", user.getId_usuario(), user.getEstado());
                 return Map.of("success", false, "message", "Usuario no aprobado");
@@ -163,6 +191,7 @@ public class UserService {
                 response.put("apellido_materno", user.getApellido_materno());
                 response.put("email", user.getEmail());
                 response.put("rol", user.getRol() != null ? user.getRol().getNombre() : null);
+                response.put("id_rol", user.getId_rol()); // Agregado para incluir id_rol
                 response.put("foto", user.getFoto());
                 return response;
             } else {

@@ -1,8 +1,10 @@
 package com.studentgest.user_service.controller;
 
 import com.studentgest.user_service.model.EstadoUsuario;
+import com.studentgest.user_service.model.Rol;
 import com.studentgest.user_service.model.User;
 import com.studentgest.user_service.service.UserService;
+import com.studentgest.user_service.repository.RolRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,27 +23,32 @@ public class UserController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private RolRepository rolRepository; // Inyectar RolRepository
+
     private final RestTemplate restTemplate = new RestTemplate();
     private final String notificationUrl = "http://localhost:8080/api/notifications";
 
     @GetMapping
     public List<Map<String, Object>> getAllUsers() {
         try {
-            List<User> users = userService.getAllUsers();
+            List<Map<String, Object>> users = userService.getAllUsers();
             return users.stream().map(user -> {
-                Map<String, Object> userMap = new HashMap<>();
-                userMap.put("id_usuario", user.getId_usuario());
-                userMap.put("nombre", user.getNombre());
-                userMap.put("apellido_paterno", user.getApellido_paterno());
-                userMap.put("apellido_materno", user.getApellido_materno());
-                userMap.put("email", user.getEmail());
-                userMap.put("password", user.getPassword());
-                userMap.put("id_rol", user.getId_rol());
-                userMap.put("rol", user.getRol() != null ? user.getRol().getNombre() : null);
-                userMap.put("estado", user.getEstado());
-                userMap.put("foto", user.getFoto());
-                userMap.put("creado_en", user.getCreado_en());
-                userMap.put("activo", user.isActivo());
+                Map<String, Object> userMap = new HashMap<>(user);
+                Integer idRol = (Integer) user.get("id_rol"); // Puede ser null
+                if (idRol != null) {
+                    try {
+                        String rolNombre = rolRepository.findById(idRol) // Usar la instancia inyectada
+                                .map(Rol::getNombre)
+                                .orElse("Sin rol");
+                        userMap.put("rol", rolNombre);
+                    } catch (Exception e) {
+                        userMap.put("rol", "Sin rol");
+                        logger.warn("No se pudo obtener el nombre del rol para id_rol: {}", idRol, e);
+                    }
+                } else {
+                    userMap.put("rol", "Sin rol"); // Manejo explícito cuando id_rol es null
+                }
                 return userMap;
             }).collect(Collectors.toList());
         } catch (Exception e) {
@@ -182,6 +189,7 @@ public class UserController {
                 adjustedResponse.put("apellido_materno", response.get("apellido_materno"));
                 adjustedResponse.put("email", response.get("email"));
                 adjustedResponse.put("rol", response.get("rol"));
+                adjustedResponse.put("id_rol", response.get("id_rol")); // Agregado para incluir id_rol
                 adjustedResponse.put("foto", response.get("foto"));
                 return adjustedResponse;
             } else {
