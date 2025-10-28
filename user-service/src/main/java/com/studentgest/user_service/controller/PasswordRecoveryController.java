@@ -229,4 +229,126 @@ public class PasswordRecoveryController {
             return ResponseEntity.status(500).body(response);
         }
     }
+    @PostMapping("/find-user")
+    public ResponseEntity<?> findUserByEmail(@RequestBody Map<String, String> request) {
+        try {
+            String email = request.get("email");
+            
+            if (email == null || email.trim().isEmpty()) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("message", "Email es requerido");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            Optional<User> userOptional = userRepository.findByEmail(email.toLowerCase().trim());
+            
+            Map<String, Object> response = new HashMap<>();
+            if (userOptional.isEmpty()) {
+                response.put("success", false);
+                response.put("message", "No se encontró un usuario con ese email");
+                return ResponseEntity.ok(response);
+            }
+
+            User user = userOptional.get();
+            
+            // Retornar información básica del usuario (sin datos sensibles)
+            response.put("success", true);
+            response.put("message", "Usuario encontrado");
+            response.put("user", Map.of(
+                "id", user.getId_usuario(),
+                "email", user.getEmail(),
+                "nombre", user.getNombre()
+            ));
+            
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Error interno del servidor");
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    // Cambiar contraseña por email (sin token)
+    @PostMapping("/change-by-email")
+    public ResponseEntity<?> changePasswordByEmail(@RequestBody Map<String, String> request) {
+        try {
+            String email = request.get("email");
+            String newPassword = request.get("newPassword");
+            String confirmPassword = request.get("confirmPassword");
+
+            Map<String, Object> response = new HashMap<>();
+            
+            if (email == null || newPassword == null || confirmPassword == null) {
+                response.put("success", false);
+                response.put("message", "Todos los campos son requeridos");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            if (!newPassword.equals(confirmPassword)) {
+                response.put("success", false);
+                response.put("message", "Las contraseñas no coinciden");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            // Validar política de contraseñas
+            if (!passwordPolicyService.validatePassword(newPassword)) {
+                response.put("success", false);
+                response.put("message", "La contraseña no cumple con las políticas de seguridad");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            Optional<User> userOptional = userRepository.findByEmail(email.toLowerCase().trim());
+            
+            if (userOptional.isEmpty()) {
+                response.put("success", false);
+                response.put("message", "Usuario no encontrado");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            User user = userOptional.get();
+            String newPasswordHash = passwordEncoder.encode(newPassword);
+
+            // Verificar que no esté en el historial
+            if (passwordHistoryService.isPasswordInHistory(user.getId_usuario(), newPassword)) {
+                Map<String, Object> config = securityConfigService.loadSecurityConfig();
+                int historySize = (Integer) config.get("passwordHistorySize");
+                response.put("success", false);
+                response.put("message", "No puede reutilizar las últimas " + historySize + " contraseñas");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            // Guardar contraseña actual en historial
+            passwordHistoryService.addToPasswordHistory(user.getId_usuario(), user.getPassword());
+
+            // Actualizar contraseña
+            user.setPassword(newPasswordHash);
+            user.setUltimoCambioPassword(new Timestamp(System.currentTimeMillis()));
+            user.setIntentosFallidos(0);
+            user.setBloqueado(false);
+
+            // Establecer nueva expiración
+            Map<String, Object> config = securityConfigService.loadSecurityConfig();
+            int expiryDays = (Integer) config.get("passwordExpiryDays");
+            LocalDateTime expirationDate = LocalDateTime.now().plusDays(expiryDays);
+            user.setFechaExpiracionPassword(Timestamp.valueOf(expirationDate));
+
+            userRepository.save(user);
+
+            // Enviar notificación de cambio de contraseña
+            emailService.sendPasswordChangedNotification(user.getEmail(), user.getNombre());
+
+            response.put("success", true);
+            response.put("message", "Contraseña cambiada exitosamente");
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Error interno del servidor");
+            return ResponseEntity.status(500).body(response);
+        }
+    }
 }

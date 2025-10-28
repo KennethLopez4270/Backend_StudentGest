@@ -26,6 +26,7 @@ public interface PasswordHistoryRepository extends JpaRepository<PasswordHistory
            "(SELECT ph2.id FROM PasswordHistory ph2 WHERE ph2.userId = :userId ORDER BY ph2.createdAt DESC LIMIT 5)")
     void deleteOldPasswords(@Param("userId") Integer userId);
     
+    
     // Contar cuántas contraseñas tiene un usuario en el historial
     long countByUserId(Integer userId);
 }

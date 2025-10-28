@@ -55,6 +55,7 @@ public class SecurityConfig {
                     "/api/password-strength/**", 
                     "/api/email/**",  
                     "/api/app-config/**",
+                    "/api/password-change/forced-change",
                     "/api/password-recovery/**",
                     "/api/password-change/policy" 
                 ).permitAll()

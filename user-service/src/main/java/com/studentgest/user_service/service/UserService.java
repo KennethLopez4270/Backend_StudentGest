@@ -177,6 +177,8 @@ public class UserService {
         logger.info("🔓 Activo: {}", user.isActivo());
         logger.info("🔐 Contraseña en DB: {}", user.getPassword());
         logger.info("👤 Rol: {}", user.getRol());
+
+        checkAndUpdatePasswordExpiration(user);
         
         // Verificar si está bloqueado
         if (user.isBloqueado()) {
@@ -397,7 +399,7 @@ public class UserService {
             repository.save(user);
         });
     }
-
+    
     public List<User> getUsuariosPorRol(Rol rol) {
         return repository.findByRol(rol);
     }
@@ -410,26 +412,83 @@ public class UserService {
         });
     }
 
-    // ✅ NUEVO: Método para verificar estado de verificación
-    public Map<String, Object> getVerificationStatus(String email) {
-        try {
-            Optional<User> userOptional = getUserByEmail(email);
-            if (userOptional.isEmpty()) {
-                return Map.of("success", false, "message", "Usuario no encontrado");
-            }
-            
-            User user = userOptional.get();
-            return Map.of(
-                "success", true,
-                "estado", user.getEstado().toString(),
-                "estadoGmail", user.getEstadoGmail(),
-                "fullyVerified", EstadoUsuario.APROBADO.equals(user.getEstado()) && 
-                               "verificado".equalsIgnoreCase(user.getEstadoGmail())
-            );
-            
-        } catch (Exception e) {
-            logger.error("❌ Error obteniendo estado de verificación: {}", e.getMessage());
-            return Map.of("success", false, "message", "Error interno del servidor");
+    // ✅ NUEVO: Método para verificar y actualizar expiración de contraseña
+private void checkAndUpdatePasswordExpiration(User user) {
+    try {
+        Timestamp ahora = new Timestamp(System.currentTimeMillis());
+        Timestamp fechaExpiracion = user.getFechaExpiracionPassword();
+        
+        logger.info("🔍 Verificando expiración de contraseña para: {}", user.getEmail());
+        logger.info("📅 Fecha actual: {}", ahora);
+        logger.info("📅 Fecha expiración: {}", fechaExpiracion);
+        
+        if (fechaExpiracion != null && fechaExpiracion.before(ahora)) {
+            logger.warn("⏰ CONTRASEÑA EXPIRADA para: {}", user.getEmail());
+            user.setRequiresPasswordChange(true);
+            repository.save(user);
+            logger.info("✅ requires_password_change actualizado a TRUE");
+        } else if (fechaExpiracion != null) {
+            long diasRestantes = (fechaExpiracion.getTime() - ahora.getTime()) / (1000 * 60 * 60 * 24);
+            logger.info("✅ Contraseña vigente. Días restantes: {}", diasRestantes);
         }
+        
+    } catch (Exception e) {
+        logger.error("❌ Error verificando expiración de contraseña: {}", e.getMessage());
     }
+}
+
+// En UserService.java - Corregir el método getVerificationStatus (estaba mal ubicado)
+
+// ... código anterior ...
+
+// ✅ NUEVO: Método para verificar estado de verificación (FUERA del método updatePasswordExpirationDate)
+public Map<String, Object> getVerificationStatus(String email) {
+    try {
+        Optional<User> userOptional = getUserByEmail(email);
+        if (userOptional.isEmpty()) {
+            return Map.of("success", false, "message", "Usuario no encontrado");
+        }
+        
+        User user = userOptional.get();
+        return Map.of(
+            "success", true,
+            "estado", user.getEstado().toString(),
+            "estadoGmail", user.getEstadoGmail(),
+            "fullyVerified", EstadoUsuario.APROBADO.equals(user.getEstado()) && 
+                           "verificado".equalsIgnoreCase(user.getEstadoGmail())
+        );
+        
+    } catch (Exception e) {
+        logger.error("❌ Error obteniendo estado de verificación: {}", e.getMessage());
+        return Map.of("success", false, "message", "Error interno del servidor");
+    }
+}
+
+// El método updatePasswordExpirationDate debe terminar ANTES de getVerificationStatus
+public void updatePasswordExpirationDate(Integer userId) {
+    try {
+        Optional<User> userOptional = repository.findById(userId);
+        if (userOptional.isPresent()) {
+            User user = userOptional.get();
+            
+            // Obtener días de expiración desde la configuración de seguridad
+            Map<String, Object> config = securityConfigService.loadSecurityConfig();
+            int expiryDays = (Integer) config.get("passwordExpiryDays");
+            
+            // Calcular nueva fecha de expiración
+            LocalDateTime expirationDate = LocalDateTime.now().plusDays(expiryDays);
+            user.setFechaExpiracionPassword(Timestamp.valueOf(expirationDate));
+            user.setRequiresPasswordChange(false); // Resetear el flag
+            
+            repository.save(user);
+            
+            logger.info("✅ Fecha de expiración actualizada para usuario {}: {} días hasta {}", 
+                       userId, expiryDays, expirationDate);
+        }
+    } catch (Exception e) {
+        logger.error("❌ Error actualizando fecha de expiración: {}", e.getMessage());
+    }
+} 
+
+
 }

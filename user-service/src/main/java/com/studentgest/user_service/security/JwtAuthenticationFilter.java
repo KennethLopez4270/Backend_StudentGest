@@ -128,6 +128,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // Endpoints de seguridad públicos  
             requestURI.startsWith("/api/security-config/password-policy") ||
             requestURI.startsWith("/api/security-config/category/") ||
+
+            // ✅ ENDPOINTS DE RECUPERACIÓN DE CONTRASEÑA (AGREGAR ESTOS)
+            requestURI.startsWith("/api/password-recovery/") ||
             
             // ✅ CAPTCHA endpoints (AGREGAR ESTOS)
             requestURI.startsWith("/api/captcha/") ||
@@ -175,7 +178,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         boolean isPublic = isPublicEndpoint(path, method);
         
         logger.info("🔍 shouldNotFilter - {} {} -> {}", method, path, isPublic ? "PUBLICO" : "PROTEGIDO");
-        
+        if (path.contains("password-recovery")) {
+            logger.info("🔐 PASSWORD RECOVERY ENDPOINT - {} {} -> {}", method, path, isPublic ? "PUBLICO" : "PROTEGIDO");
+        }
         return isPublic;
     }
 }
