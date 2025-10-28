@@ -1,9 +1,7 @@
 package com.studentgest.user_service.config;
 
 import com.studentgest.user_service.security.JwtAuthenticationFilter;
-
 import java.util.List;
-
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -40,7 +38,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(authz -> authz
-                // ✅ PERMITIR TODOS LOS ENDPOINTS PÚBLICOS EXPLÍCITAMENTE
+                // ✅ TODOS LOS ENDPOINTS PÚBLICOS - SIMPLIFICADO
                 .requestMatchers(
                     "/api/users/login",
                     "/api/users/register", 
@@ -50,33 +48,38 @@ public class SecurityConfig {
                     "/api/users/debug/**",
                     "/api/users/simple-password-policy",
                     "/api/users/test-cors",
-                    "/api/security-config/password-policy",
-                    "/api/security-config/public/**",
-                    "/api/users/verify-session"
+                    "/api/security-config/**",           
+                    "/api/users/verify-session",
+                    "/api/captcha/**", 
+                    "/api/email-verification/**", 
+                    "/api/password-strength/**", 
+                    "/api/email/**",  
+                    "/api/app-config/**",
+                    "/api/password-recovery/**",
+                    "/api/password-change/policy" 
                 ).permitAll()
                 
-                // ✅ PERMITIR REGISTRO DE USUARIOS
+                // ✅ REGISTRO DE USUARIOS
                 .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
                 
-                // ❌ EL RESTO REQUIERE AUTENTICACIÓN
+                // ❌ RESTO REQUIERE AUTENTICACIÓN
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
-        System.out.println("🔐 CONFIGURACIÓN DE SEGURIDAD COMPLETADA");
+        System.out.println("🔐 CONFIGURACIÓN DE SEGURIDAD COMPLETADA ✅ TODOS LOS ENDPOINTS PÚBLICOS HABILITADOS");
         return http.build();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Especificar el origen permitido (tu frontend)
         configuration.setAllowedOrigins(List.of("http://localhost:5173"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Content-Type", "Authorization"));
-        configuration.setAllowCredentials(true); // Permitir credenciales (cookies, etc.)
-        configuration.setMaxAge(3600L); // Cachear la respuesta preflight por 1 hora
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
@@ -92,5 +95,4 @@ public class SecurityConfig {
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
-    
 }

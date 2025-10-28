@@ -33,6 +33,8 @@ public class PasswordPolicyService {
         boolean hasUppercase = !requiresUppercase || password.matches(".*[A-Z].*");
         boolean hasLowercase = !requiresLowercase || password.matches(".*[a-z].*");
         boolean hasNumbers = !requiresNumbers || password.matches(".*[0-9].*");
+        
+        // CORREGIDO: Validación de caracteres especiales
         boolean hasSpecial = !requiresSpecial || password.matches(".*[" + Pattern.quote(specialChars) + "].*");
         
         return hasUppercase && hasLowercase && hasNumbers && hasSpecial;
@@ -65,20 +67,28 @@ public class PasswordPolicyService {
         
         Map<String, Object> config = securityConfigService.loadSecurityConfig();
         int minLength = (Integer) config.get("minPasswordLength");
+        boolean requiresUppercase = (Boolean) config.get("requiresUppercase");
+        boolean requiresLowercase = (Boolean) config.get("requiresLowercase");
+        boolean requiresNumbers = (Boolean) config.get("requiresNumbers");
+        boolean requiresSpecial = (Boolean) config.get("requiresSpecial");
+        String specialChars = (String) config.get("allowedSpecialChars");
         
         int strength = 0;
         
         // Longitud (máximo 40 puntos)
-        int lengthScore = Math.min((password.length() * 100) / minLength, 40);
-        strength += lengthScore;
+        if (password.length() >= minLength) {
+            strength += 40;
+        }
         
-        // Diversidad de caracteres (máximo 60 puntos)
-        if (password.matches(".*[A-Z].*")) strength += 15;
-        if (password.matches(".*[a-z].*")) strength += 15;  
-        if (password.matches(".*[0-9].*")) strength += 15;
+        // Diversidad de caracteres (solo si están requeridos)
+        if (requiresUppercase && password.matches(".*[A-Z].*")) strength += 10;
+        if (requiresLowercase && password.matches(".*[a-z].*")) strength += 10;  
+        if (requiresNumbers && password.matches(".*[0-9].*")) strength += 10;
         
-        String specialChars = (String) config.get("allowedSpecialChars");
-        if (password.matches(".*[" + Pattern.quote(specialChars) + "].*")) strength += 15;
+        // CORREGIDO: Solo contar caracteres especiales si están requeridos
+        if (requiresSpecial && password.matches(".*[" + Pattern.quote(specialChars) + "].*")) {
+            strength += 15;
+        }
         
         return Math.min(strength, 100);
     }
