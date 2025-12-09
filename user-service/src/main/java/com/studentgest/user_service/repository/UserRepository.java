@@ -12,6 +12,8 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     Optional<User> findByEmail(String email);
     List<User> findByActivoTrue();
     List<User> findByRol(Rol rol);
+    @Query("SELECT u FROM User u WHERE u.id_rol = :idRol")
+    List<User> findByIdRol(Integer idRol);
     Optional<User> findByTokenVerificacion(String tokenVerificacion);
     List<User> findByEstadoGmail(String estadoGmail);
     @Query("SELECT u FROM User u WHERE u.expiracionTokenVerificacion < CURRENT_TIMESTAMP AND u.tokenVerificacion IS NOT NULL")

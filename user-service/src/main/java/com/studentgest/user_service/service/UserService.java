@@ -3,23 +3,29 @@ package com.studentgest.user_service.service;
 import com.studentgest.user_service.model.EstadoUsuario;
 import com.studentgest.user_service.model.Rol;
 import com.studentgest.user_service.model.User;
+import com.studentgest.user_service.repository.RolRepository;
 import com.studentgest.user_service.repository.UserRepository;
 import com.studentgest.user_service.security.JwtUtil;
 import com.studentgest.user_service.service.EmailVerificationService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Service
 @Transactional
@@ -28,6 +34,12 @@ public class UserService {
 
     @Autowired
     private UserRepository repository;
+
+    @Autowired
+    private RolRepository rolRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Autowired
     private PasswordHistoryService passwordHistoryService; 
@@ -50,18 +62,97 @@ public class UserService {
     @Autowired
     private EmailVerificationService emailVerificationService;
 
-    public List<User> getAllUsers() {
-        return repository.findAll();
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getAllUsers() {
+        try {
+            logger.debug("Iniciando recuperación de todos los usuarios");
+            List<Object[]> results = entityManager.createQuery(
+                            "SELECT u.id_usuario, u.nombre, u.apellido_paterno, u.apellido_materno, u.email, u.password, " +
+                                    "u.id_rol, u.estado, u.foto, u.creado_en, u.activo FROM User u", Object[].class)
+                    .getResultList();
+
+            List<Map<String, Object>> users = new ArrayList<>();
+            for (Object[] result : results) {
+                Map<String, Object> userMap = new HashMap<>();
+                userMap.put("id_usuario", result[0]);
+                userMap.put("nombre", result[1]);
+                userMap.put("apellido_paterno", result[2]);
+                userMap.put("apellido_materno", result[3]);
+                userMap.put("email", result[4]);
+                userMap.put("password", result[5]);
+                userMap.put("id_rol", result[6]); // Puede ser null
+                userMap.put("estado", result[7] != null ? result[7].toString() : null);
+                userMap.put("foto", result[8]);
+                userMap.put("creado_en", result[9]);
+                userMap.put("activo", result[10]);
+                users.add(userMap);
+            }
+            logger.debug("Recuperados {} usuarios de la base de datos", users.size());
+            users.forEach(user -> logger.debug("Usuario: id={}, email={}, id_rol={}, estado={}",
+                    user.get("id_usuario"), user.get("email"), user.get("id_rol"), user.get("estado")));
+            return users;
+        } catch (Exception e) {
+            logger.error("Error al obtener todos los usuarios", e);
+            return new ArrayList<>();
+        }
     }
 
+    @Transactional(readOnly = true)
     public Optional<User> getUserById(Integer id) {
-        return repository.findById(id);
+        logger.debug("Buscando usuario con ID: {}", id);
+        try {
+            Optional<User> user = repository.findById(id);
+            logger.debug("Resultado de findById: {}", user.isPresent() ? "Encontrado" : "No encontrado");
+            return user;
+        } catch (Exception e) {
+            logger.error("Error al buscar usuario con ID: {}", id, e);
+            throw new RuntimeException("Error al buscar usuario con ID: " + id, e);
+        }
     }
 
+    @Transactional(readOnly = true)
     public Optional<User> getUserByEmail(String email) {
-        return repository.findByEmail(email.toLowerCase().trim());
+        try {
+            return Optional.ofNullable(repository.findByEmail(email)
+                    .orElseThrow(() -> new IllegalArgumentException("Email no encontrado: " + email)));
+        } catch (Exception e) {
+            logger.error("Error al buscar usuario por email: {}", email, e);
+            throw new RuntimeException("Error al buscar usuario por email", e);
+        }
     }
 
+
+    // Existia problema con model/Rol de Molli (verificar)
+    @Transactional(readOnly = true)
+    public Map<String, String> getRolUsuario(Integer id) {
+        try {
+            return getUserById(id)
+                    .map(user -> Map.of("success", "true", "rol", user.getRol() != null ? user.getRol().getNombre() : null))
+                    .orElse(Map.of("success", "false", "message", "Usuario no encontrado"));
+        } catch (Exception e) {
+            logger.error("Error al obtener rol para usuario con ID: {}", id, e);
+            return Map.of("success", "false", "message", "Error al obtener rol");
+        }
+    }
+
+
+    @Transactional
+    public Map<String, String> resetPassword(String email) {
+        try {
+            User user = getUserByEmail(email)
+                    .filter(User::isActivo)
+                    .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado o inactivo"));
+            String newPassword = "ABCabc1234!";
+            user.setPassword(hashPassword(newPassword));
+            repository.save(user);
+            return Map.of("success", "true", "message", "Contraseña reseteada con éxito, notificación pendiente.");
+        } catch (Exception e) {
+            logger.error("Error al resetear la contraseña para el usuario con email: {}", email, e);
+            return Map.of("success", "false", "message", "Error al resetear la contraseña");
+        }
+    }
+
+    
     public User createUser(User user) {
         try {
             logger.info("=== CREANDO USUARIO ===");
@@ -389,28 +480,131 @@ public class UserService {
         }).orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
     }
 
+    @Transactional(readOnly = true)
     public List<User> getUsuariosActivos() {
-        return repository.findByActivoTrue();
+        try {
+            logger.debug("Iniciando recuperación de usuarios activos");
+            List<User> users = repository.findByActivoTrue();
+            logger.debug("Recuperados {} usuarios activos", users.size());
+            return users;
+        } catch (Exception e) {
+            logger.error("Error al obtener usuarios activos", e);
+            throw new RuntimeException("Error al recuperar usuarios activos", e);
+        }
     }
 
+    @Transactional
     public void desactivarUsuario(Integer id) {
-        repository.findById(id).ifPresent(user -> {
+        try {
+            User user = getUserById(id)
+                    .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado con ID: " + id));
             user.setActivo(false);
             repository.save(user);
-        });
-    }
-    
-    public List<User> getUsuariosPorRol(Rol rol) {
-        return repository.findByRol(rol);
+            logger.info("Usuario desactivado correctamente con ID: {}", id);
+        } catch (Exception e) {
+            logger.error("Error al desactivar usuario con ID: {}", id, e);
+            throw new RuntimeException("Error al desactivar el usuario", e);
+        }
     }
 
+    /* 
+    // Problema con model/User
+    @Transactional
     public void activarUsuario(Integer id) {
-        repository.findById(id).ifPresent(user -> {
+        try {
+            User user = getUserById(id)
+                    .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado con ID: " + id));
+            if (user.isActivo()) {
+                logger.warn("El usuario con ID: {} ya está activo", id);
+                throw new IllegalStateException("El usuario ya está activo");
+            }
             user.setActivo(true);
-            user.setEstado(EstadoUsuario.APROBADO);
+            if (user.getEstado() != EstadoUsuario.APROBADO) {
+                user.setEstado(EstadoUsuario.APROBADO);
+                logger.debug("Estado del usuario con ID: {} cambiado a APROBADO", id);
+            }
+            if (user.getCreado_en() == null) {
+                user.setCreado_en(LocalDateTime.now());
+                logger.debug("Fecha de creación establecida para usuario con ID: {}", id);
+            }
             repository.save(user);
-        });
+            logger.info("Usuario activado correctamente con ID: {}", id);
+        } catch (NoSuchElementException e) {
+            logger.error("Usuario no encontrado para activar con ID: {}", id, e);
+            throw e;
+        } catch (Exception e) {
+            logger.error("Error al activar usuario con ID: {}", id, e);
+            throw new RuntimeException("Error al activar el usuario: " + e.getMessage(), e);
+        }
     }
+*/
+
+    @Transactional(readOnly = true)
+    public List<User> getUsuariosPorRol(String rolNombre) {
+        try {
+            logger.debug("Iniciando recuperación de usuarios por rol: {}", rolNombre);
+            Rol rol = rolRepository.findByNombre(rolNombre)
+                    .orElseThrow(() -> new RuntimeException("Rol no encontrado: " + rolNombre));
+            Integer idRol = rol.getIdRol();
+            logger.debug("ID del rol encontrado: {}", idRol);
+            List<User> users = repository.findByIdRol(idRol);
+            logger.debug("Recuperados {} usuarios para rol: {}", users.size(), rolNombre);
+            return users;
+        } catch (Exception e) {
+            logger.error("Error al obtener usuarios por rol: {}", rolNombre, e);
+            throw new RuntimeException("Error al recuperar usuarios por rol", e);
+        }
+    }
+
+    /* 
+    //
+    @Transactional
+    public void aprobarUsuario(Integer id) {
+        try {
+            User user = getUserById(id)
+                    .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado con ID: " + id));
+            if (user.getEstado() == EstadoUsuario.APROBADO) {
+                logger.warn("El usuario con ID: {} ya está aprobado", id);
+                throw new IllegalStateException("El usuario ya está aprobado");
+            }
+            user.setEstado(EstadoUsuario.APROBADO);
+            if (user.getCreado_en() == null) {
+                user.setCreado_en(LocalDateTime.now());
+                logger.debug("Fecha de creación establecida para usuario con ID: {}", id);
+            }
+            repository.save(user);
+            logger.info("Usuario aprobado correctamente con ID: {}", id);
+        } catch (NoSuchElementException e) {
+            logger.error("Usuario no encontrado para aprobar con ID: {}", id, e);
+            throw e;
+        } catch (Exception e) {
+            logger.error("Error al aprobar usuario con ID: {}", id, e);
+            throw new RuntimeException("Error al aprobar el usuario: " + e.getMessage(), e);
+        }
+    }
+    */
+
+    @Transactional
+    public void desaprobarUsuario(Integer id) {
+        try {
+            User user = getUserById(id)
+                    .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado con ID: " + id));
+            if (user.getEstado() == EstadoUsuario.RECHAZADO) {
+                logger.warn("El usuario con ID: {} ya está rechazado", id);
+                throw new IllegalStateException("El usuario ya está rechazado");
+            }
+            user.setEstado(EstadoUsuario.RECHAZADO);
+            repository.save(user);
+            logger.info("Usuario desaprobado correctamente con ID: {}", id);
+        } catch (NoSuchElementException e) {
+            logger.error("Usuario no encontrado para desaprobar con ID: {}", id, e);
+            throw e;
+        } catch (Exception e) {
+            logger.error("Error al desaprobar usuario con ID: {}", id, e);
+            throw new RuntimeException("Error al desaprobar el usuario: " + e.getMessage(), e);
+        }
+    }
+
 
     // ✅ NUEVO: Método para verificar y actualizar expiración de contraseña
 private void checkAndUpdatePasswordExpiration(User user) {
@@ -490,5 +684,56 @@ public void updatePasswordExpirationDate(Integer userId) {
     }
 } 
 
+
+    public boolean verifyPassword(String rawPassword, String hashedPassword) {
+        try {
+            if (rawPassword == null || hashedPassword == null) {
+                logger.warn("Contraseña nula: rawPassword={}, hashedPassword={}", rawPassword, hashedPassword);
+                return false;
+            }
+            boolean matches = hashPassword(rawPassword).equals(hashedPassword);
+            logger.debug("Verificación de contraseña: coincide={}", matches);
+            return matches;
+        } catch (Exception e) {
+            logger.error("Error al verificar contraseña", e);
+            return false;
+        }
+    }
+
+    private String hashPassword(String password) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hashedBytes = md.digest(password.getBytes());
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hashedBytes) {
+                sb.append(String.format("%02x", b));
+            }
+            logger.debug("Contraseña hasheada: longitud={}", sb.length());
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            logger.error("Error al hashear la contraseña", e);
+            throw new RuntimeException("Error al hashear la contraseña", e);
+        }
+    }
+
+    @Transactional
+    public void hashExistingPasswords() {
+        try {
+            List<User> users = repository.findAll();
+            logger.info("Iniciando hasheo de contraseñas existentes: {} usuarios encontrados", users.size());
+            for (User user : users) {
+                String currentPassword = user.getPassword();
+                if (currentPassword != null && !currentPassword.isEmpty() && currentPassword.length() < 64) {
+                    user.setPassword(hashPassword(currentPassword));
+                    repository.save(user);
+                    logger.info("Contraseña hasheada para usuario con ID: {}", user.getId_usuario());
+                }
+            }
+            logger.info("Hasheo de contraseñas existentes completado");
+        } catch (Exception e) {
+            logger.error("Error al hashear contraseñas existentes", e);
+            throw new RuntimeException("Error al hashear contraseñas existentes", e);
+        }
+    }
 
 }

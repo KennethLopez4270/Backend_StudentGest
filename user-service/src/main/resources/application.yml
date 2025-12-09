@@ -3,7 +3,8 @@ server:
 
 spring:
   application:
-    name: users-service
+    # name: users-service  Porque se cambia el nombre?
+    name: user-service
   datasource:
     url: jdbc:postgresql://localhost:5432/studentgest
     username: postgres

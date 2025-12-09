@@ -1,5 +1,6 @@
 package com.studentgest.user_service.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import java.sql.Timestamp;
@@ -35,9 +36,19 @@ public class User {
     @Column(name = "password", nullable = false, length = 255)
     private String password;
 
+    @Column(name = "id_rol")
+    private Integer id_rol;
+
     @Convert(converter = RolConverter.class)
     @Column(name = "rol", nullable = false, length = 50)
     private Rol rol;
+    /* 
+    // Kenneth:
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_rol", referencedColumnName = "id_rol", insertable = false, updatable = false)
+    @JsonIgnore
+    private Rol rol;
+    */
 
     @Convert(converter = EstadoUsuarioConverter.class)
     @Column(name = "estado", length = 20)
@@ -50,6 +61,7 @@ public class User {
     @Column(name = "creado_en")
     @Builder.Default
     private Timestamp creado_en = new Timestamp(System.currentTimeMillis());
+    // Kennet usa: private LocalDateTime creado_en; (causa un error)
 
     @Column(name = "activo")
     @Builder.Default
@@ -109,149 +121,62 @@ public class User {
         }
     }
 
-    public Integer getId_usuario() {
-        return id_usuario;
-    }
+    public Integer getId_usuario() {return id_usuario;}
+    public void setId_usuario(Integer id_usuario) {this.id_usuario = id_usuario;}
 
-    public void setId_usuario(Integer id_usuario) {
-        this.id_usuario = id_usuario;
-    }
+    public String getNombre() {return nombre;}
+    public void setNombre(String nombre) {this.nombre = nombre;}
 
-    public String getNombre() {
-        return nombre;
-    }
+    public String getApellido_paterno() {return apellido_paterno;}
+    public void setApellido_paterno(String apellido_paterno) {this.apellido_paterno = apellido_paterno;}
 
-    public void setNombre(String nombre) {
-        this.nombre = nombre;
-    }
+    public String getApellido_materno() {return apellido_materno;}
+    public void setApellido_materno(String apellido_materno) {this.apellido_materno = apellido_materno;}
 
-    public String getApellido_paterno() {
-        return apellido_paterno;
-    }
+    public String getEmail() {return email;}
+    public void setEmail(String email) {this.email = email;}
 
-    public void setApellido_paterno(String apellido_paterno) {
-        this.apellido_paterno = apellido_paterno;
-    }
+    public String getPassword() {return password;}
+    public void setPassword(String password) {this.password = password;}
 
-    public String getApellido_materno() {
-        return apellido_materno;
-    }
+    public Rol getRol() {return rol;}
+    public void setRol(Rol rol) {this.rol = rol;}
 
-    public void setApellido_materno(String apellido_materno) {
-        this.apellido_materno = apellido_materno;
-    }
+    public EstadoUsuario getEstado() {return estado;}
+    public void setEstado(EstadoUsuario estado) {this.estado = estado;}
 
-    public String getEmail() {
-        return email;
-    }
+    public String getFoto() {return foto;}
+    public void setFoto(String foto) {this.foto = foto;}
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
+    public Timestamp getCreado_en() {return creado_en;}
+    public void setCreado_en(Timestamp creado_en) {this.creado_en = creado_en;}
 
-    public String getPassword() {
-        return password;
-    }
+    public boolean isActivo() {return activo;}
+    public void setActivo(boolean activo) {this.activo = activo;}
 
-    public void setPassword(String password) {
-        this.password = password;
-    }
+    public Integer getId_rol() { return id_rol; }
+    public void setId_rol(Integer id_rol) { this.id_rol = id_rol; }
 
-    public Rol getRol() {
-        return rol;
-    }
+    public int getIntentosFallidos() {return intentosFallidos;}
+    public void setIntentosFallidos(int intentosFallidos) {this.intentosFallidos = intentosFallidos;}
 
-    public void setRol(Rol rol) {
-        this.rol = rol;
-    }
+    public boolean isBloqueado() {return bloqueado;}
+    public void setBloqueado(boolean bloqueado) {this.bloqueado = bloqueado;}
 
-    public EstadoUsuario getEstado() {
-        return estado;
-    }
+    public Timestamp getFechaExpiracionPassword() {return fechaExpiracionPassword;}
+    public void setFechaExpiracionPassword(Timestamp fechaExpiracionPassword) {this.fechaExpiracionPassword = fechaExpiracionPassword;}
 
-    public void setEstado(EstadoUsuario estado) {
-        this.estado = estado;
-    }
+    public Timestamp getUltimoCambioPassword() {return ultimoCambioPassword;}
+    public void setUltimoCambioPassword(Timestamp ultimoCambioPassword) {this.ultimoCambioPassword = ultimoCambioPassword;}
 
-    public String getFoto() {
-        return foto;
-    }
+    public List<String> getHistorialPasswords() {return historialPasswords;}
+    public void setHistorialPasswords(List<String> historialPasswords) {this.historialPasswords = historialPasswords;}
 
-    public void setFoto(String foto) {
-        this.foto = foto;
-    }
+    public Integer getSessionTimeout() {return sessionTimeout;}
+    public void setSessionTimeout(Integer sessionTimeout) {this.sessionTimeout = sessionTimeout;}
 
-    public Timestamp getCreado_en() {
-        return creado_en;
-    }
-
-    public void setCreado_en(Timestamp creado_en) {
-        this.creado_en = creado_en;
-    }
-
-    public boolean isActivo() {
-        return activo;
-    }
-
-    public void setActivo(boolean activo) {
-        this.activo = activo;
-    }
-
-    public int getIntentosFallidos() {
-        return intentosFallidos;
-    }
-
-    public void setIntentosFallidos(int intentosFallidos) {
-        this.intentosFallidos = intentosFallidos;
-    }
-
-    public boolean isBloqueado() {
-        return bloqueado;
-    }
-
-    public void setBloqueado(boolean bloqueado) {
-        this.bloqueado = bloqueado;
-    }
-
-    public Timestamp getFechaExpiracionPassword() {
-        return fechaExpiracionPassword;
-    }
-
-    public void setFechaExpiracionPassword(Timestamp fechaExpiracionPassword) {
-        this.fechaExpiracionPassword = fechaExpiracionPassword;
-    }
-
-    public Timestamp getUltimoCambioPassword() {
-        return ultimoCambioPassword;
-    }
-
-    public void setUltimoCambioPassword(Timestamp ultimoCambioPassword) {
-        this.ultimoCambioPassword = ultimoCambioPassword;
-    }
-
-    public List<String> getHistorialPasswords() {
-        return historialPasswords;
-    }
-
-    public void setHistorialPasswords(List<String> historialPasswords) {
-        this.historialPasswords = historialPasswords;
-    }
-
-    public Integer getSessionTimeout() {
-        return sessionTimeout;
-    }
-
-    public void setSessionTimeout(Integer sessionTimeout) {
-        this.sessionTimeout = sessionTimeout;
-    }
-
-    public boolean isRequiresPasswordChange() {
-        return requiresPasswordChange;
-    }
-
-    public void setRequiresPasswordChange(boolean requiresPasswordChange) {
-        this.requiresPasswordChange = requiresPasswordChange;
-    }
+    public boolean isRequiresPasswordChange() {return requiresPasswordChange;}
+    public void setRequiresPasswordChange(boolean requiresPasswordChange) {this.requiresPasswordChange = requiresPasswordChange;}
 
     public String getEstadoGmail() { return estadoGmail; }
     public void setEstadoGmail(String estadoGmail) { this.estadoGmail = estadoGmail; }
@@ -260,8 +185,6 @@ public class User {
     public void setTokenVerificacion(String tokenVerificacion) { this.tokenVerificacion = tokenVerificacion; }
 
     public Timestamp getExpiracionTokenVerificacion() { return expiracionTokenVerificacion; }
-    public void setExpiracionTokenVerificacion(Timestamp expiracionTokenVerificacion) { 
-        this.expiracionTokenVerificacion = expiracionTokenVerificacion; 
-    }
+    public void setExpiracionTokenVerificacion(Timestamp expiracionTokenVerificacion) {this.expiracionTokenVerificacion = expiracionTokenVerificacion; }
 
 }

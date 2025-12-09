@@ -1,3 +1,4 @@
+// src/main/java/com/estudentgest/student_service/dto/EstudianteUsuarioDTO.java
 package com.estudentgest.student_service.dto;
 
 import lombok.Data;
@@ -13,8 +14,10 @@ public class EstudianteUsuarioDTO {
     private String password;
     private String ci;
     private String fecha_nacimiento;
+    private Integer id_rol;        // Nuevo
     private String rol;
     private String estado;
     private String foto;
     private Boolean activo;
+    private String creado_en;      // Nuevo
 }
