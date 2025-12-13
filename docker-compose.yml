@@ -1,0 +1,222 @@
+# =====================================================
+# Docker Compose - StudentGest Backend
+# Incluye todos los microservicios y PostgreSQL
+# =====================================================
+
+version: '3.8'
+
+services:
+  # =====================================================
+  # Base de Datos PostgreSQL
+  # =====================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: studentgest-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ABCabc123}
+      POSTGRES_DB: ${POSTGRES_DB:-studentgest}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - studentgest-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =====================================================
+  # API Gateway - Puerto 8080
+  # =====================================================
+  api-gateway:
+    build: ./student-gateway
+    container_name: studentgest-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      # URLs internas de los microservicios (usando nombres de contenedor)
+      - STUDENT_SERVICE_URL=http://student-service:8081
+      - ATTENDANCE_SERVICE_URL=http://attendance-service:8082
+      - HOMEWORK_SERVICE_URL=http://homework-service:8083
+      - USER_SERVICE_URL=http://user-service:8084
+      - NOTIFICATION_SERVICE_URL=http://notificaciones-service:8085
+      - FORO_SERVICE_URL=http://foro-service:8088
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - studentgest-network
+
+  # =====================================================
+  # User Service - Puerto 8084
+  # =====================================================
+  user-service:
+    build: ./user-service
+    container_name: studentgest-user-service
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/studentgest
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-postgres}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-ABCabc123}
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      # Configuración de Email
+      - SPRING_MAIL_HOST=smtp.gmail.com
+      - SPRING_MAIL_PORT=587
+      - SPRING_MAIL_USERNAME=${MAIL_USERNAME:-}
+      - SPRING_MAIL_PASSWORD=${MAIL_PASSWORD:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - studentgest-network
+
+  # =====================================================
+  # Student Service - Puerto 8081
+  # =====================================================
+  student-service:
+    build: ./student-service
+    container_name: studentgest-student-service
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/studentgest
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-postgres}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-ABCabc123}
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - USER_SERVICE_BASE_URL=http://api-gateway:8080/api/users
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - studentgest-network
+
+  # =====================================================
+  # Attendance Service - Puerto 8082
+  # =====================================================
+  attendance-service:
+    build: ./attendance-service
+    container_name: studentgest-attendance-service
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/studentgest
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-postgres}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-ABCabc123}
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - studentgest-network
+
+  # =====================================================
+  # Homework Service - Puerto 8083
+  # =====================================================
+  homework-service:
+    build: ./homework-service
+    container_name: studentgest-homework-service
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/studentgest
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-postgres}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-ABCabc123}
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - USER_SERVICE_BASE_URL=http://api-gateway:8080/api/users
+      - STUDENT_SERVICE_BASE_URL=http://api-gateway:8080/api/students
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - studentgest-network
+
+  # =====================================================
+  # Notificaciones Service - Puerto 8085
+  # =====================================================
+  notificaciones-service:
+    build: ./notificaciones-service
+    container_name: studentgest-notificaciones-service
+    restart: unless-stopped
+    ports:
+      - "8085:8085"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/studentgest
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-postgres}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-ABCabc123}
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      # Configuración de Email
+      - SPRING_MAIL_HOST=smtp.gmail.com
+      - SPRING_MAIL_PORT=587
+      - SPRING_MAIL_USERNAME=${MAIL_USERNAME:-}
+      - SPRING_MAIL_PASSWORD=${MAIL_PASSWORD:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - studentgest-network
+
+  # =====================================================
+  # Foro Service - Puerto 8088
+  # =====================================================
+  foro-service:
+    build: ./foro-service
+    container_name: studentgest-foro-service
+    restart: unless-stopped
+    ports:
+      - "8088:8088"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/studentgest
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-postgres}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-ABCabc123}
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - studentgest-network
+
+  # =====================================================
+  # Encuesta Service - Puerto 8086
+  # =====================================================
+  encuesta-service:
+    build: ./encuesta-service
+    container_name: studentgest-encuesta-service
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/studentgest
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-postgres}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-ABCabc123}
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SERVER_PORT=8086
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - studentgest-network
+
+# =====================================================
+# Volumes
+# =====================================================
+volumes:
+  postgres_data:
+    driver: local
+
+# =====================================================
+# Networks
+# =====================================================
+networks:
+  studentgest-network:
+    driver: bridge
