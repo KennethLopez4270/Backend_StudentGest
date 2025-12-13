@@ -35,7 +35,7 @@ public class SecurityConfig {
         System.out.println("🔐 INICIANDO CONFIGURACIÓN DE SEGURIDAD...");
 
         http
-                .cors(cors -> cors.disable())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authz -> authz
                         // ✅ PERMITIR OPTIONS (CORS) GLOBALMENTE
@@ -76,8 +76,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(
-                List.of("http://localhost:5173", "https://proyecto-seguridad-studengest.netlify.app"));
+        // ✅ Incluye localhost:5173 (dev), localhost:4173 (preview) y producción
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:5173",
+                "http://localhost:4173",
+                "https://proyecto-seguridad-studengest.netlify.app"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Content-Type", "Authorization"));
         configuration.setAllowCredentials(true);

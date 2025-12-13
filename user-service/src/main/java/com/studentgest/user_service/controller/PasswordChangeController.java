@@ -28,7 +28,7 @@ import java.util.Optional;
 @RequestMapping("/api/password-change")
 public class PasswordChangeController {
 
-    private static final Logger logger = LoggerFactory.getLogger(PasswordChangeController.class); // ✅ AGREGAR ESTO
+    private static final Logger logger = LoggerFactory.getLogger(PasswordChangeController.class);
 
     @Autowired
     private UserRepository userRepository;
@@ -61,7 +61,7 @@ public class PasswordChangeController {
             String confirmPassword = request.get("confirmPassword");
 
             Map<String, Object> response = new HashMap<>();
-            
+
             if (currentPassword == null || newPassword == null || confirmPassword == null) {
                 response.put("success", false);
                 response.put("message", "Todos los campos son requeridos");
@@ -87,6 +87,9 @@ public class PasswordChangeController {
 
             // Verificar contraseña actual
             if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+                // ✅ LOG DE SEGURIDAD: Cambio de contraseña fallido
+                auditLogService.logPasswordChangeAttempt(user.getId_usuario(), false, "Contraseña actual incorrecta",
+                        "N/A");
                 response.put("success", false);
                 response.put("message", "La contraseña actual es incorrecta");
                 return ResponseEntity.badRequest().body(response);
@@ -94,6 +97,9 @@ public class PasswordChangeController {
 
             // Validar nueva contraseña
             if (!passwordPolicyService.validatePassword(newPassword)) {
+                // ✅ LOG DE SEGURIDAD: Cambio de contraseña fallido
+                auditLogService.logPasswordChangeAttempt(user.getId_usuario(), false, "No cumple política de seguridad",
+                        "N/A");
                 response.put("success", false);
                 response.put("message", passwordPolicyService.getPasswordRequirements());
                 return ResponseEntity.badRequest().body(response);
@@ -108,7 +114,7 @@ public class PasswordChangeController {
 
             // Verificar historial
             boolean isInHistory = passwordHistoryService.isPasswordInHistory(user.getId_usuario(), newPassword);
-            
+
             if (isInHistory) {
                 Map<String, Object> config = securityConfigService.loadSecurityConfig();
                 int historySize = (Integer) config.get("passwordHistorySize");
@@ -134,8 +140,8 @@ public class PasswordChangeController {
 
             userRepository.save(user);
 
-            // Registrar en auditoría
-            auditLogService.logPasswordChange(user.getId_usuario(), "Cambio voluntario");
+            // ✅ LOG DE SEGURIDAD: Cambio de contraseña exitoso
+            auditLogService.logPasswordChangeAttempt(user.getId_usuario(), true, "Cambio voluntario exitoso", "N/A");
 
             // Enviar notificación
             emailService.sendPasswordChangedNotification(user.getEmail(), user.getNombre());
@@ -154,10 +160,11 @@ public class PasswordChangeController {
     }
 
     @PostMapping("/check-history")
-    public ResponseEntity<?> checkPasswordHistory(@RequestBody Map<String, String> request, Authentication authentication) {
+    public ResponseEntity<?> checkPasswordHistory(@RequestBody Map<String, String> request,
+            Authentication authentication) {
         try {
             String password = request.get("password");
-            
+
             if (password == null) {
                 Map<String, Object> response = new HashMap<>();
                 response.put("success", false);
@@ -176,16 +183,15 @@ public class PasswordChangeController {
             }
 
             User user = userOptional.get();
-            
+
             boolean isInHistory = passwordHistoryService.isPasswordInHistory(user.getId_usuario(), password);
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("isInHistory", isInHistory);
-            response.put("message", isInHistory ? 
-                "Esta contraseña ha sido utilizada anteriormente" : 
-                "Contraseña válida (no está en el historial)");
-            
+            response.put("message", isInHistory ? "Esta contraseña ha sido utilizada anteriormente"
+                    : "Contraseña válida (no está en el historial)");
+
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
@@ -201,7 +207,7 @@ public class PasswordChangeController {
     public ResponseEntity<?> getPasswordPolicy() {
         try {
             Map<String, Object> config = securityConfigService.loadSecurityConfig();
-            
+
             Map<String, Object> policy = new HashMap<>();
             policy.put("minLength", config.get("minPasswordLength"));
             policy.put("requiresUppercase", config.get("requiresUppercase"));
@@ -211,12 +217,12 @@ public class PasswordChangeController {
             policy.put("allowedSpecialChars", config.get("allowedSpecialChars"));
             policy.put("passwordHistorySize", config.get("passwordHistorySize"));
             policy.put("passwordExpiryDays", config.get("passwordExpiryDays"));
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("policy", policy);
             response.put("requirements", passwordPolicyService.getPasswordRequirements());
-            
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             logger.error("Error obteniendo política de contraseñas", e);
@@ -228,7 +234,8 @@ public class PasswordChangeController {
     }
 
     @PostMapping("/forced-change")
-    public ResponseEntity<?> forcedPasswordChange(@RequestBody Map<String, String> request, HttpServletRequest httpRequest) {
+    public ResponseEntity<?> forcedPasswordChange(@RequestBody Map<String, String> request,
+            HttpServletRequest httpRequest) {
         try {
             String email = request.get("email");
             String newPassword = request.get("newPassword");
@@ -236,7 +243,7 @@ public class PasswordChangeController {
             String ipAddress = getClientIp(httpRequest);
 
             Map<String, Object> response = new HashMap<>();
-            
+
             if (email == null || newPassword == null || confirmPassword == null) {
                 response.put("success", false);
                 response.put("message", "Todos los campos son requeridos");
@@ -257,7 +264,7 @@ public class PasswordChangeController {
             }
 
             Optional<User> userOptional = userRepository.findByEmail(email.toLowerCase().trim());
-            
+
             if (userOptional.isEmpty()) {
                 response.put("success", false);
                 response.put("message", "Usuario no encontrado");
@@ -284,7 +291,7 @@ public class PasswordChangeController {
             user.setUltimoCambioPassword(new Timestamp(System.currentTimeMillis()));
             user.setIntentosFallidos(0);
             user.setBloqueado(false);
-            user.setRequiresPasswordChange(false); // Quitar el requerimiento de cambio
+            user.setRequiresPasswordChange(false);
 
             // Actualizar fecha de expiración
             Map<String, Object> config = securityConfigService.loadSecurityConfig();
@@ -294,7 +301,7 @@ public class PasswordChangeController {
 
             userRepository.save(user);
 
-            // Registrar en auditoría
+            // ✅ LOG DE SEGURIDAD: Cambio forzado de contraseña exitoso
             auditLogService.logPasswordChange(user.getId_usuario(), ipAddress);
 
             // Enviar notificación de cambio de contraseña

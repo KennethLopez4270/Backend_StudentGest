@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    
+    <!-- =============================================
+         CONSOLE APPENDER - Para desarrollo
+         ============================================= -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- =============================================
+         APPLICATION LOG FILE - Logs generales
+         ============================================= -->
+    <appender name="APPLICATION_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/user-service.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/user-service.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>100MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- =============================================
+         SECURITY AUDIT LOG FILE - Solo eventos de seguridad
+         ============================================= -->
+    <appender name="SECURITY_AUDIT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/security-audit.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- Rotación diaria -->
+            <fileNamePattern>logs/security-audit.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <!-- Mantener 90 días de historial -->
+            <maxHistory>90</maxHistory>
+            <!-- Tamaño máximo total -->
+            <totalSizeCap>500MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <!-- Formato específico para auditoría de seguridad -->
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} | %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- =============================================
+         USER ACTIVITY LOG FILE - Actividad de usuarios
+         ============================================= -->
+    <appender name="USER_ACTIVITY_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/user-activity.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/user-activity.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>60</maxHistory>
+            <totalSizeCap>200MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} | %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- =============================================
+         LOGGER ESPECÍFICO PARA AUDITORÍA DE SEGURIDAD
+         ============================================= -->
+    <logger name="SECURITY_AUDIT" level="INFO" additivity="false">
+        <appender-ref ref="SECURITY_AUDIT_FILE" />
+        <appender-ref ref="CONSOLE" />
+    </logger>
+
+    <!-- =============================================
+         LOGGER PARA ACTIVIDAD DE USUARIOS
+         ============================================= -->
+    <logger name="USER_ACTIVITY" level="INFO" additivity="false">
+        <appender-ref ref="USER_ACTIVITY_FILE" />
+        <appender-ref ref="CONSOLE" />
+    </logger>
+
+    <!-- =============================================
+         LOGGERS PARA EL SERVICIO
+         ============================================= -->
+    <logger name="com.studentgest.user_service.service.AuditLogService" level="INFO" additivity="false">
+        <appender-ref ref="SECURITY_AUDIT_FILE" />
+        <appender-ref ref="APPLICATION_FILE" />
+        <appender-ref ref="CONSOLE" />
+    </logger>
+
+    <logger name="com.studentgest.user_service.security" level="DEBUG" additivity="false">
+        <appender-ref ref="SECURITY_AUDIT_FILE" />
+        <appender-ref ref="CONSOLE" />
+    </logger>
+
+    <logger name="com.studentgest.user_service.controller" level="DEBUG" additivity="false">
+        <appender-ref ref="APPLICATION_FILE" />
+        <appender-ref ref="CONSOLE" />
+    </logger>
+
+    <!-- =============================================
+         ROOT LOGGER
+         ============================================= -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="APPLICATION_FILE" />
+    </root>
+
+</configuration>

@@ -4,6 +4,7 @@ import com.studentgest.user_service.model.EstadoUsuario;
 import com.studentgest.user_service.model.Rol;
 import com.studentgest.user_service.model.User;
 import com.studentgest.user_service.security.JwtUtil;
+import com.studentgest.user_service.service.AuditLogService;
 import com.studentgest.user_service.service.PasswordPolicyService;
 import com.studentgest.user_service.service.SecurityConfigService;
 import com.studentgest.user_service.service.UserService;
@@ -45,6 +46,9 @@ public class UserController {
     @Autowired
     private JwtUtil jwtUtil;
 
+    @Autowired
+    private AuditLogService auditLogService;
+
     // =============================================
     // ENDPOINTS PÚBLICOS Y DE DEBUG (AL INICIO)
     // =============================================
@@ -79,6 +83,7 @@ public class UserController {
 
     @PostMapping
     public ResponseEntity<?> createUser(@RequestBody @Valid User user, HttpServletRequest request) {
+        String ipAddress = getClientIp(request);
         try {
             logger.info("=== INICIANDO REGISTRO ===");
             logger.info("Email: {}", user.getEmail());
@@ -98,6 +103,9 @@ public class UserController {
 
             User savedUser = userService.createUser(user);
 
+            // ✅ LOG DE SEGURIDAD: Registro de usuario exitoso
+            auditLogService.logUserRegistration(savedUser.getEmail(), true, ipAddress);
+
             logger.info("✅ Usuario creado exitosamente: {}", savedUser.getEmail());
             logger.info("✅ ID generado: {}", savedUser.getId_usuario());
             logger.info("✅ Estado: {}", savedUser.getEstado());
@@ -115,18 +123,23 @@ public class UserController {
 
         } catch (IllegalArgumentException e) {
             logger.error("❌ Error de validación: {}", e.getMessage());
+            // ✅ LOG DE SEGURIDAD: Registro de usuario fallido
+            auditLogService.logUserRegistration(user.getEmail(), false, ipAddress);
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
                     "error", "Error de validación",
                     "message", e.getMessage()));
         } catch (DataIntegrityViolationException e) {
             logger.error("❌ Error de base de datos: {}", e.getMessage());
+            // ✅ LOG DE SEGURIDAD: Registro de usuario fallido (email duplicado)
+            auditLogService.logUserRegistration(user.getEmail(), false, ipAddress);
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
                     "error", "Error de base de datos",
                     "message", "El email ya está en uso"));
         } catch (Exception e) {
             logger.error("💥 ERROR INTERNO: {}", e.getMessage(), e);
+            auditLogService.logUserRegistration(user.getEmail(), false, ipAddress);
             e.printStackTrace();
             return ResponseEntity.status(500).body(Map.of(
                     "success", false,
@@ -159,10 +172,14 @@ public class UserController {
                     // Enviar notificación
                     notificacionClient.enviarNotificacionResetPassword(email, user.getNombre(), newPassword);
 
+                    // ✅ LOG DE SEGURIDAD: Reset de contraseña exitoso
+                    auditLogService.logPasswordRecoveryReset(email, true, ipAddress);
+
                     return ResponseEntity.ok(Map.of(
                             "success", true,
                             "message", "Se ha enviado un correo con la nueva contraseña."));
                 } catch (IllegalArgumentException e) {
+                    auditLogService.logPasswordRecoveryReset(email, false, ipAddress);
                     return ResponseEntity.badRequest().body(Map.of(
                             "success", false,
                             "error", e.getMessage()));
@@ -381,6 +398,7 @@ public class UserController {
 
     @GetMapping("/verify-session")
     public ResponseEntity<?> verifySession(HttpServletRequest request) {
+        String ipAddress = getClientIp(request);
         try {
             String authHeader = request.getHeader("Authorization");
 
@@ -397,6 +415,9 @@ public class UserController {
             boolean isValid = jwtUtil.validateTokenWithInactivity(token, email);
             Date expiration = jwtUtil.extractExpiration(token);
             Long lastActivity = jwtUtil.extractLastActivity(token);
+
+            // ✅ LOG DE SEGURIDAD: Verificación de sesión
+            auditLogService.logSessionVerification(email, isValid, ipAddress);
 
             if (isValid) {
                 return ResponseEntity.ok(Map.of(
@@ -610,9 +631,12 @@ public class UserController {
     }
 
     @PutMapping("/desactivar/{id}")
-    public ResponseEntity<?> desactivarUsuario(@PathVariable Integer id) {
+    public ResponseEntity<?> desactivarUsuario(@PathVariable Integer id, HttpServletRequest request) {
+        String ipAddress = getClientIp(request);
         try {
             userService.desactivarUsuario(id);
+            // ✅ LOG DE SEGURIDAD: Desactivación de usuario
+            auditLogService.logUserDeactivation(id, null, ipAddress);
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "Usuario desactivado correctamente."));
@@ -625,9 +649,12 @@ public class UserController {
     }
 
     @PutMapping("/activar/{id}")
-    public ResponseEntity<?> activarUsuario(@PathVariable Integer id) {
+    public ResponseEntity<?> activarUsuario(@PathVariable Integer id, HttpServletRequest request) {
+        String ipAddress = getClientIp(request);
         try {
             userService.activarUsuario(id);
+            // ✅ LOG DE SEGURIDAD: Activación de usuario
+            auditLogService.logUserActivation(id, null, ipAddress);
             // ✅ NUEVO: Enviar notificación
             userService.getUserById(id).ifPresent(user -> {
                 notificacionClient.enviarNotificacionActivacion(user.getEmail(), user.getNombre());
@@ -645,9 +672,12 @@ public class UserController {
     }
 
     @PutMapping("/aprobar/{id}")
-    public ResponseEntity<?> aprobarUsuario(@PathVariable Integer id) {
+    public ResponseEntity<?> aprobarUsuario(@PathVariable Integer id, HttpServletRequest request) {
+        String ipAddress = getClientIp(request);
         try {
             userService.aprobarUsuario(id);
+            // ✅ LOG DE SEGURIDAD: Aprobación de usuario
+            auditLogService.logUserApproval(id, null, ipAddress);
             // ✅ NUEVO: Enviar notificación
             userService.getUserById(id).ifPresent(user -> {
                 notificacionClient.enviarNotificacionAprobacion(user.getEmail(), user.getNombre());
@@ -665,9 +695,12 @@ public class UserController {
     }
 
     @PutMapping("/desaprobar/{id}")
-    public ResponseEntity<?> desaprobarUsuario(@PathVariable Integer id) {
+    public ResponseEntity<?> desaprobarUsuario(@PathVariable Integer id, HttpServletRequest request) {
+        String ipAddress = getClientIp(request);
         try {
             userService.desaprobarUsuario(id);
+            // ✅ LOG DE SEGURIDAD: Rechazo de usuario
+            auditLogService.logUserRejection(id, null, ipAddress);
             // ✅ NUEVO: Enviar notificación
             userService.getUserById(id).ifPresent(user -> {
                 notificacionClient.enviarNotificacionRechazo(user.getEmail(), user.getNombre());
@@ -685,9 +718,12 @@ public class UserController {
     }
 
     @PostMapping("/desbloquear/{id}")
-    public ResponseEntity<?> desbloquearUsuario(@PathVariable Integer id) {
+    public ResponseEntity<?> desbloquearUsuario(@PathVariable Integer id, HttpServletRequest request) {
+        String ipAddress = getClientIp(request);
         try {
             userService.desbloquearUsuario(id);
+            // ✅ LOG DE SEGURIDAD: Desbloqueo de usuario
+            auditLogService.logUserUnblock(id, null, ipAddress);
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "Usuario desbloqueado correctamente"));
@@ -718,6 +754,8 @@ public class UserController {
             boolean success = userService.forzarCambioPassword(id, nuevaPassword, ipAddress);
 
             if (success) {
+                // ✅ LOG DE SEGURIDAD: Cambio forzado de contraseña
+                auditLogService.logForcedPasswordChange(id, null, ipAddress);
                 return ResponseEntity.ok(Map.of(
                         "success", true,
                         "message", "Contraseña cambiada exitosamente"));

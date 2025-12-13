@@ -2,8 +2,9 @@ package com.studentgest.user_service.controller;
 
 import com.studentgest.user_service.model.Funcionalidad;
 import com.studentgest.user_service.model.Rol;
-import com.studentgest.user_service.model.RolesFuncionalidades;
+import com.studentgest.user_service.service.AuditLogService;
 import com.studentgest.user_service.service.RolService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,9 @@ public class RolController {
 
     @Autowired
     private RolService rolService;
+
+    @Autowired
+    private AuditLogService auditLogService;
 
     // Initialize default roles and functionalities
     @PostMapping("/initialize")
@@ -79,9 +83,12 @@ public class RolController {
 
     // Create a new role
     @PostMapping
-    public Rol createRole(@RequestBody Rol role) {
+    public Rol createRole(@RequestBody Rol role, HttpServletRequest request) {
         try {
-            return rolService.createRole(role);
+            Rol createdRole = rolService.createRole(role);
+            // ✅ LOG DE SEGURIDAD: Creación de rol
+            auditLogService.logRoleCreated(createdRole.getNombre(), null, getClientIp(request));
+            return createdRole;
         } catch (Exception e) {
             logger.error("Error al crear rol", e);
             throw new RuntimeException("Error al crear rol: " + e.getMessage());
@@ -90,9 +97,12 @@ public class RolController {
 
     // Update a role
     @PutMapping("/{id}")
-    public Rol updateRole(@PathVariable Integer id, @RequestBody Rol roleDetails) {
+    public Rol updateRole(@PathVariable Integer id, @RequestBody Rol roleDetails, HttpServletRequest request) {
         try {
-            return rolService.updateRole(id, roleDetails);
+            Rol updatedRole = rolService.updateRole(id, roleDetails);
+            // ✅ LOG DE SEGURIDAD: Modificación de rol
+            auditLogService.logRoleModified(id, updatedRole.getNombre(), null, getClientIp(request));
+            return updatedRole;
         } catch (Exception e) {
             logger.error("Error al actualizar rol con ID: {}", id, e);
             throw new RuntimeException("Error al actualizar rol: " + e.getMessage());
@@ -101,9 +111,11 @@ public class RolController {
 
     // Delete a role
     @DeleteMapping("/{id}")
-    public Map<String, String> deleteRole(@PathVariable Integer id) {
+    public Map<String, String> deleteRole(@PathVariable Integer id, HttpServletRequest request) {
         try {
             rolService.deleteRole(id);
+            // ✅ LOG DE SEGURIDAD: Eliminación de rol
+            auditLogService.logRoleDeleted(id, null, getClientIp(request));
             return Map.of("message", "Rol eliminado correctamente");
         } catch (Exception e) {
             logger.error("Error al eliminar rol con ID: {}", id, e);
@@ -113,9 +125,12 @@ public class RolController {
 
     // Create a new functionality
     @PostMapping("/functionalities")
-    public Funcionalidad createFunctionality(@RequestBody Funcionalidad funcionalidad) {
+    public Funcionalidad createFunctionality(@RequestBody Funcionalidad funcionalidad, HttpServletRequest request) {
         try {
-            return rolService.createFunctionality(funcionalidad);
+            Funcionalidad created = rolService.createFunctionality(funcionalidad);
+            // ✅ LOG DE SEGURIDAD: Creación de funcionalidad
+            auditLogService.logFunctionalityCreated(created.getNombre(), null, getClientIp(request));
+            return created;
         } catch (Exception e) {
             logger.error("Error al crear funcionalidad", e);
             throw new RuntimeException("Error al crear funcionalidad: " + e.getMessage());
@@ -135,9 +150,11 @@ public class RolController {
 
     // Delete a functionality
     @DeleteMapping("/functionalities/{id}")
-    public Map<String, String> deleteFunctionality(@PathVariable Integer id) {
+    public Map<String, String> deleteFunctionality(@PathVariable Integer id, HttpServletRequest request) {
         try {
             rolService.deleteFunctionality(id);
+            // ✅ LOG DE SEGURIDAD: Eliminación de funcionalidad
+            auditLogService.logFunctionalityDeleted(id, null, getClientIp(request));
             return Map.of("message", "Funcionalidad eliminada correctamente");
         } catch (Exception e) {
             logger.error("Error al eliminar funcionalidad con ID: {}", id, e);
@@ -145,12 +162,14 @@ public class RolController {
         }
     }
 
-    // Assign functionality to role (updated to remove description parameter)
+    // Assign functionality to role
     @PostMapping("/{roleId}/functionalities/{functionalityId}")
     public Map<String, String> assignFunctionalityToRole(@PathVariable Integer roleId,
-            @PathVariable Integer functionalityId) {
+            @PathVariable Integer functionalityId, HttpServletRequest request) {
         try {
             rolService.assignFunctionalityToRole(roleId, functionalityId);
+            // ✅ LOG DE SEGURIDAD: Asignación de funcionalidad a rol
+            auditLogService.logFunctionalityAssigned(roleId, functionalityId, null, getClientIp(request));
             return Map.of("message", "Funcionalidad asignada al rol correctamente");
         } catch (Exception e) {
             logger.error("Error al asignar funcionalidad {} al rol {}", functionalityId, roleId, e);
@@ -173,13 +192,24 @@ public class RolController {
     @DeleteMapping("/{roleId}/functionalities/{functionalityId}")
     public Map<String, String> removeFunctionalityFromRole(
             @PathVariable Integer roleId,
-            @PathVariable Integer functionalityId) {
+            @PathVariable Integer functionalityId,
+            HttpServletRequest request) {
         try {
             rolService.removeFunctionalityFromRole(roleId, functionalityId);
+            // ✅ LOG DE SEGURIDAD: Remoción de funcionalidad de rol
+            auditLogService.logFunctionalityRemoved(roleId, functionalityId, null, getClientIp(request));
             return Map.of("message", "Funcionalidad desasignada correctamente");
         } catch (Exception e) {
             logger.error("Error al desasignar funcionalidad {} del rol {}", functionalityId, roleId, e);
             return Map.of("message", "Error al desasignar: " + e.getMessage());
         }
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String xfHeader = request.getHeader("X-Forwarded-For");
+        if (xfHeader == null) {
+            return request.getRemoteAddr();
+        }
+        return xfHeader.split(",")[0];
     }
 }
