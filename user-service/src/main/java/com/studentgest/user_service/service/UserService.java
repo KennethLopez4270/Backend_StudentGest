@@ -91,7 +91,7 @@ public class UserService {
                 throw new IllegalArgumentException("La contraseña no cumple con las políticas de seguridad: " + passwordPolicyService.getPasswordRequirements());
             }
     
-            // ✅ HASHEAR LA CONTRASEÑA CON BCRYPT
+            // HASHEAR LA CONTRASEÑA CON BCRYPT
             String hashedPassword = passwordEncoder.encode(user.getPassword());
             logger.info("🔐 Contraseña hasheada correctamente");
     
@@ -103,13 +103,13 @@ public class UserService {
             newUser.setEmail(email);
             newUser.setPassword(hashedPassword);
             newUser.setRol(user.getRol());
-            newUser.setEstado(EstadoUsuario.APROBADO); // ✅ APROBAR AUTOMÁTICAMENTE
-            newUser.setActivo(true); // ✅ ACTIVAR AUTOMÁTICAMENTE
+            newUser.setEstado(EstadoUsuario.APROBADO); 
+            newUser.setActivo(true); 
             newUser.setIntentosFallidos(0);
             newUser.setBloqueado(false);
             newUser.setRequiresPasswordChange(false);
             
-            // ✅ NUEVO: Inicializar estado_gmail como "pendiente"
+            // Inicializar estado_gmail como "pendiente"
             newUser.setEstadoGmail("pendiente");
             
             // Establecer timestamps
@@ -126,7 +126,7 @@ public class UserService {
             logger.info("📧 Destinatario: {}", savedUser.getEmail());
             logger.info("👤 Nombre: {}", savedUser.getNombre());
             
-            // ✅ NUEVO: Enviar email de verificación
+            // Enviar email de verificación
             try {
                 boolean emailSent = emailVerificationService.sendVerificationEmail(savedUser);
                 if (emailSent) {
@@ -139,7 +139,7 @@ public class UserService {
                 // No lanzar excepción para no bloquear el registro
             }
             
-            // ✅ NUEVO: Guardar la contraseña inicial en el historial
+            // Guardar la contraseña inicial en el historial
             passwordHistoryService.addToPasswordHistory(savedUser.getId_usuario(), hashedPassword);
             
             logger.info("✅ Usuario creado exitosamente: {}", savedUser.getEmail());
@@ -187,7 +187,7 @@ public class UserService {
             return Map.of("success", false, "message", "Cuenta bloqueada. Contacte al administrador.");
         }
         
-        // ✅ NUEVO: Verificar que el usuario esté APROBADO
+        //  Verificar que el usuario esté APROBADO
         if (!EstadoUsuario.APROBADO.equals(user.getEstado())) {
             logger.warn("⏳ USUARIO NO APROBADO: {} - Estado: {}", email, user.getEstado());
             auditLogService.logLoginAttempt(email, false, ipAddress);
@@ -202,7 +202,7 @@ public class UserService {
             return Map.of("success", false, "message", message);
         }
         
-        // ✅ NUEVO: Verificar que el email esté VERIFICADO
+        //Verificar que el email esté VERIFICADO
         if (!"verificado".equalsIgnoreCase(user.getEstadoGmail())) {
             logger.warn("📧 EMAIL NO VERIFICADO: {} - Estado Gmail: {}", email, user.getEstadoGmail());
             auditLogService.logLoginAttempt(email, false, ipAddress);
@@ -280,7 +280,7 @@ public class UserService {
         }
     }
     
-    // ✅ NUEVO: Método para reenviar verificación de email
+    //  Método para reenviar verificación de email
     public Map<String, Object> resendEmailVerification(String email) {
         try {
             Optional<User> userOptional = getUserByEmail(email);
@@ -365,7 +365,7 @@ public class UserService {
 
     public User updateUser(Integer id, User userDetails) {
         return repository.findById(id).map(user -> {
-            // ... actualización de otros campos ...
+           
             
             if (userDetails.getPassword() != null && !userDetails.getPassword().isEmpty()) {
                 if (!passwordPolicyService.validatePassword(userDetails.getPassword())) {
@@ -374,12 +374,12 @@ public class UserService {
                 
                 String nuevaPasswordHash = passwordEncoder.encode(userDetails.getPassword());
                 
-                // ✅ NUEVO: Verificar que no esté en el historial
+                //Verificar que no esté en el historial
                 if (passwordHistoryService.isPasswordInHistory(id, userDetails.getPassword())) {
                     throw new IllegalArgumentException("No puede reutilizar contraseñas anteriores");
                 }
                 
-                // ✅ NUEVO: Guardar contraseña actual en historial
+                // Guardar contraseña actual en historial
                 passwordHistoryService.addToPasswordHistory(id, user.getPassword());
                 
                 user.setPassword(nuevaPasswordHash);
@@ -412,7 +412,7 @@ public class UserService {
         });
     }
 
-    // ✅ NUEVO: Método para verificar y actualizar expiración de contraseña
+    //  Método para verificar y actualizar expiración de contraseña
 private void checkAndUpdatePasswordExpiration(User user) {
     try {
         Timestamp ahora = new Timestamp(System.currentTimeMillis());
@@ -437,11 +437,7 @@ private void checkAndUpdatePasswordExpiration(User user) {
     }
 }
 
-// En UserService.java - Corregir el método getVerificationStatus (estaba mal ubicado)
 
-// ... código anterior ...
-
-// ✅ NUEVO: Método para verificar estado de verificación (FUERA del método updatePasswordExpirationDate)
 public Map<String, Object> getVerificationStatus(String email) {
     try {
         Optional<User> userOptional = getUserByEmail(email);

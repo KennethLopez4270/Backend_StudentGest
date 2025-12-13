@@ -30,7 +30,7 @@ public class JwtUtil {
     
     public Long getExpiration() {
         try {
-            // ✅ PRIMERO intentar con JWT_EXPIRATION_HOURS (24 horas de tu BD)
+            // PRIMERO intentar con JWT_EXPIRATION_HOURS (24 horas de tu BD)
             Integer expirationHours = securityConfigService.getIntegerValue("JWT_EXPIRATION_HOURS", null);
             if (expirationHours != null) {
                 Long expirationMs = (long) (expirationHours * 60 * 60 * 1000);
@@ -41,11 +41,11 @@ public class JwtUtil {
             // Fallback a TIMEOUT_SESION_MINUTOS
             Integer timeoutMinutes = securityConfigService.getIntegerValue("TIMEOUT_SESION_MINUTOS", 15);
             Long expirationMs = (long) (timeoutMinutes * 60 * 1000);
-            logger.info("🔐 JWT Expiration from TIMEOUT_SESION_MINUTOS: {} minutes ({} ms)", timeoutMinutes, expirationMs);
+            logger.info("JWT Expiration from TIMEOUT_SESION_MINUTOS: {} minutes ({} ms)", timeoutMinutes, expirationMs);
             return expirationMs;
             
         } catch (Exception e) {
-            logger.warn("❌ Error al cargar expiration, usando valor por defecto: 24 horas");
+            logger.warn("Error al cargar expiration, usando valor por defecto: 24 horas");
             return 24 * 60 * 60 * 1000L; // 24 horas por defecto
         }
     }
@@ -55,10 +55,10 @@ public class JwtUtil {
         try {
             Integer timeoutMinutes = securityConfigService.getIntegerValue("TIMEOUT_SESION_MINUTOS", 15);
             Long inactivityMs = (long) (timeoutMinutes * 60 * 1000);
-            logger.debug("🔐 JWT Inactivity timeout: {} minutes ({} ms)", timeoutMinutes, inactivityMs);
+            logger.debug("JWT Inactivity timeout: {} minutes ({} ms)", timeoutMinutes, inactivityMs);
             return inactivityMs;
         } catch (Exception e) {
-            logger.warn("❌ Error al cargar inactivity timeout, usando valor por defecto");
+            logger.warn("Error al cargar inactivity timeout, usando valor por defecto");
             return 15 * 60 * 1000L;
         }
     }
@@ -92,7 +92,7 @@ public class JwtUtil {
         } catch (Exception e) {
             debugInfo.put("success", false);
             debugInfo.put("error", e.getMessage());
-            logger.error("❌ Error en debugToken: {}", e.getMessage());
+            logger.error("Error en debugToken: {}", e.getMessage());
         }
         return debugInfo;
     }
@@ -104,19 +104,19 @@ public class JwtUtil {
         
         long expirationMs = getExpiration();
         
-        // ✅ CORREGIR: Usar la misma zona horaria para issuedAt y expiration
+        // CORREGIR: Usar la misma zona horaria para issuedAt y expiration
         Date issuedAt = new Date(System.currentTimeMillis());
         Date expirationDate = new Date(System.currentTimeMillis() + expirationMs);
         
         // LOG PARA DEBUG
-        logger.info("🎯 GENERANDO NUEVO TOKEN JWT:");
-        logger.info("📧 Email: {}", email);
-        logger.info("👤 Rol: {}", rol);
-        logger.info("🆔 UserId: {}", userId);
-        logger.info("⏰ Expiración configurada (ms): {}", expirationMs);
-        logger.info("📅 Creado el: {}", issuedAt);
-        logger.info("📅 Expira el: {}", expirationDate);
-        logger.info("🕒 Diferencia: {} minutos", expirationMs / (60 * 1000));
+        logger.info("GENERANDO NUEVO TOKEN JWT:");
+        logger.info("Email: {}", email);
+        logger.info("Rol: {}", rol);
+        logger.info("UserId: {}", userId);
+        logger.info("Expiración configurada (ms): {}", expirationMs);
+        logger.info("Creado el: {}", issuedAt);
+        logger.info("Expira el: {}", expirationDate);
+        logger.info("Diferencia: {} minutos", expirationMs / (60 * 1000));
         
         return Jwts.builder()
                 .setClaims(claims)
@@ -171,24 +171,24 @@ public class JwtUtil {
                     .parseClaimsJws(token)
                     .getBody();
         } catch (ExpiredJwtException e) {
-            logger.warn("❌ Token JWT expirado: {}", e.getMessage());
+            logger.warn("Token JWT expirado: {}", e.getMessage());
             throw new SecurityException("Token expirado", e);
         } catch (JwtException e) {
-            logger.warn("❌ Token JWT inválido: {}", e.getMessage());
+            logger.warn("Token JWT inválido: {}", e.getMessage());
             throw new SecurityException("Token inválido", e);
         }
     }
 
-    // ✅ CAMBIADO DE private A public
+    // CAMBIADO DE private A public
     public Boolean isTokenExpired(String token) {
         try {
             boolean expired = extractExpiration(token).before(new Date());
             if (expired) {
-                logger.debug("⏰ Token expirado detectado");
+                logger.debug("Token expirado detectado");
             }
             return expired;
         } catch (Exception e) {
-            logger.warn("❌ Error al verificar expiración del token: {}", e.getMessage());
+            logger.warn("Error al verificar expiración del token: {}", e.getMessage());
             return true;
         }
     }
@@ -204,15 +204,15 @@ public class JwtUtil {
             boolean inactive = timeSinceLastActivity > inactivityTimeout;
             
             if (inactive) {
-                logger.warn("🚫 Token inactivo: {} ms desde última actividad (timeout: {} ms)", 
+                logger.warn("Token inactivo: {} ms desde última actividad (timeout: {} ms)", 
                            timeSinceLastActivity, inactivityTimeout);
             } else {
-                logger.debug("✅ Token activo: {} ms desde última actividad", timeSinceLastActivity);
+                logger.debug("Token activo: {} ms desde última actividad", timeSinceLastActivity);
             }
             
             return inactive;
         } catch (Exception e) {
-            logger.warn("❌ Error al verificar inactividad del token: {}", e.getMessage());
+            logger.warn("Error al verificar inactividad del token: {}", e.getMessage());
             return true; // Si hay error, considerar como inactivo
         }
     }
@@ -222,7 +222,7 @@ public class JwtUtil {
         try {
             return extractClaim(token, claims -> claims.get("lastActivity", Long.class));
         } catch (Exception e) {
-            logger.warn("❌ Error al extraer última actividad: {}", e.getMessage());
+            logger.warn("Error al extraer última actividad: {}", e.getMessage());
             return 0L;
         }
     }
@@ -234,12 +234,12 @@ public class JwtUtil {
             String rol = extractRol(token);
             Integer userId = extractUserId(token);
             
-            logger.debug("🔄 Refrescando token para usuario: {}", email);
+            logger.debug("Refrescando token para usuario: {}", email);
             
             // Generar nuevo token con nueva última actividad
             return generateToken(email, rol, userId);
         } catch (Exception e) {
-            logger.error("💥 Error al refrescar token: {}", e.getMessage());
+            logger.error("Error al refrescar token: {}", e.getMessage());
             throw new SecurityException("No se pudo refrescar el token", e);
         }
     }
@@ -257,13 +257,13 @@ public class JwtUtil {
             
             boolean isValid = (username.equals(email) && !isExpired && !isInactive);
             
-            logger.debug("🔍 Validación token - Usuario: {}, Expired: {}, Inactive: {}, Valid: {}", 
+            logger.debug("Validación token - Usuario: {}, Expired: {}, Inactive: {}, Valid: {}", 
                         username, isExpired, isInactive, isValid);
             
             return isValid;
             
         } catch (Exception e) {
-            logger.error("💥 Error en validación completa del token: {}", e.getMessage());
+            logger.error("Error en validación completa del token: {}", e.getMessage());
             return false;
         }
     }

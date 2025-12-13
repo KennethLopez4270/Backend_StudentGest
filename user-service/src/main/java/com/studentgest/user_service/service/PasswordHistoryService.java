@@ -35,14 +35,14 @@ public class PasswordHistoryService {
             boolean isInHistory = passwordHistory.stream()
                     .anyMatch(ph -> passwordEncoder.matches(plainPassword, ph.getPasswordHash()));
             
-            System.out.println("🔍 Verificando historial para usuario " + userId + 
+            System.out.println(" Verificando historial para usuario " + userId + 
                              ": " + (isInHistory ? "ENCONTRADA en historial" : "NO encontrada en historial"));
-            System.out.println("📋 Historial revisado: " + passwordHistory.size() + " contraseñas");
+            System.out.println("Historial revisado: " + passwordHistory.size() + " contraseñas");
             
             return isInHistory;
             
         } catch (Exception e) {
-            System.err.println("❌ Error verificando historial de contraseñas: " + e.getMessage());
+            System.err.println(" Error verificando historial de contraseñas: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
@@ -57,13 +57,13 @@ public class PasswordHistoryService {
             PasswordHistory newHistory = new PasswordHistory(userId, passwordHash);
             passwordHistoryRepository.save(newHistory);
             
-            System.out.println("✅ Contraseña agregada al historial para usuario: " + userId);
+            System.out.println("Contraseña agregada al historial para usuario: " + userId);
             
             // Limpiar contraseñas antiguas (mantener solo las últimas 5)
             cleanOldPasswords(userId);
             
         } catch (Exception e) {
-            System.err.println("❌ Error agregando al historial: " + e.getMessage());
+            System.err.println("Error agregando al historial: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -81,11 +81,11 @@ public class PasswordHistoryService {
                 List<PasswordHistory> passwordsToDelete = allPasswords.subList(MAX_PASSWORD_HISTORY, allPasswords.size());
                 passwordHistoryRepository.deleteAll(passwordsToDelete);
                 
-                System.out.println("🧹 Limpiadas " + passwordsToDelete.size() + 
+                System.out.println(" Limpiadas " + passwordsToDelete.size() + 
                                  " contraseñas antiguas del historial para usuario: " + userId);
             }
         } catch (Exception e) {
-            System.err.println("❌ Error limpiando historial: " + e.getMessage());
+            System.err.println(" Error limpiando historial: " + e.getMessage());
             e.printStackTrace();
         }
     }

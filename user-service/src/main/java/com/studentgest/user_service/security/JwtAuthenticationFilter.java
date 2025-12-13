@@ -33,54 +33,54 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String requestURI = request.getRequestURI();
         String method = request.getMethod();
         
-        logger.info("🎯 INICIANDO FILTRO para: {} {}", method, requestURI);
+        logger.info("INICIANDO FILTRO para: {} {}", method, requestURI);
 
-        // ✅ SI ES PÚBLICO, PASAR DIRECTAMENTE
+        // SI ES PÚBLICO, PASAR DIRECTAMENTE
         if (isPublicEndpoint(requestURI, method)) {
-            logger.info("✅ Endpoint público, pasando filtro: {}", requestURI);
+            logger.info("Endpoint público, pasando filtro: {}", requestURI);
             chain.doFilter(request, response);
             return;
         }
 
-        logger.info("🔐 Endpoint protegido, verificando autenticación: {}", requestURI);
+        logger.info("Endpoint protegido, verificando autenticación: {}", requestURI);
 
         final String authorizationHeader = request.getHeader("Authorization");
-        logger.info("📨 Authorization Header: {}", authorizationHeader);
+        logger.info("Authorization Header: {}", authorizationHeader);
 
         String email = null;
         String jwt = null;
 
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             jwt = authorizationHeader.substring(7);
-            logger.info("✅ Token JWT encontrado, longitud: {}", jwt.length());
+            logger.info("Token JWT encontrado, longitud: {}", jwt.length());
             
             try {
                 email = jwtUtil.extractUsername(jwt);
-                logger.info("👤 Usuario extraído del token: {}", email);
+                logger.info("Usuario extraído del token: {}", email);
                 
             } catch (Exception e) {
-                logger.error("❌ Error al extraer username del token: {}", e.getMessage());
+                logger.error("Error al extraer username del token: {}", e.getMessage());
                 sendErrorResponse(response, "Token inválido: " + e.getMessage());
                 return;
             }
         } else {
-            logger.warn("❌ No hay Authorization header o formato incorrecto");
+            logger.warn("No hay Authorization header o formato incorrecto");
             sendErrorResponse(response, "Token de autorización requerido");
             return;
         }
 
         if (email != null) {
-            logger.info("🔐 Verificando autenticación para usuario: {}", email);
+            logger.info("Verificando autenticación para usuario: {}", email);
             
             try {
                 boolean isValid = jwtUtil.validateTokenWithInactivity(jwt, email);
-                logger.info("✅ Resultado validación token: {}", isValid);
+                logger.info("Resultado validación token: {}", isValid);
                 
                 if (isValid) {
                     String rol = jwtUtil.extractRol(jwt);
                     Integer userId = jwtUtil.extractUserId(jwt);
                     
-                    logger.info("🎉 Autenticación exitosa - Usuario: {}, Rol: {}", email, rol);
+                    logger.info("Autenticación exitosa - Usuario: {}, Rol: {}", email, rol);
                     
                     UsernamePasswordAuthenticationToken authToken = 
                         new UsernamePasswordAuthenticationToken(
@@ -95,16 +95,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     String newToken = jwtUtil.refreshToken(jwt);
                     response.setHeader("X-New-Token", newToken);
                     
-                    logger.info("🔄 Token refrescado para usuario: {}", email);
+                    logger.info("Token refrescado para usuario: {}", email);
                     
                 } else {
-                    logger.warn("🚫 Token inválido para usuario: {}", email);
+                    logger.warn("Token inválido para usuario: {}", email);
                     sendErrorResponse(response, "Token de autenticación inválido o expirado");
                     return;
                 }
                 
             } catch (Exception e) {
-                logger.error("💥 Error durante la validación del token: {}", e.getMessage());
+                logger.error("Error durante la validación del token: {}", e.getMessage());
                 sendErrorResponse(response, "Error de autenticación: " + e.getMessage());
                 return;
             }
@@ -129,20 +129,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             requestURI.startsWith("/api/security-config/password-policy") ||
             requestURI.startsWith("/api/security-config/category/") ||
 
-            // ✅ ENDPOINTS DE RECUPERACIÓN DE CONTRASEÑA (AGREGAR ESTOS)
+            // ENDPOINTS DE RECUPERACIÓN DE CONTRASEÑA (AGREGAR ESTOS)
             requestURI.startsWith("/api/password-recovery/") ||
             
-            // ✅ CAPTCHA endpoints (AGREGAR ESTOS)
+            // CAPTCHA endpoints (AGREGAR ESTOS)
             requestURI.startsWith("/api/captcha/") ||
             
-            // ✅ Password strength endpoints (AGREGAR ESTOS)
+            // Password strength endpoints (AGREGAR ESTOS)
             requestURI.startsWith("/api/password-strength/") ||
             
-            // ✅ Email validation endpoints (AGREGAR ESTOS)
+            // Email validation endpoints (AGREGAR ESTOS)
             requestURI.startsWith("/api/email/validate") ||
             requestURI.startsWith("/api/email-verification/") ||
             
-            // ✅ App config endpoints
+            // App config endpoints
             requestURI.startsWith("/api/app-config/") ||
             
             // Endpoints de debug temporalmente como públicos
@@ -177,9 +177,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         
         boolean isPublic = isPublicEndpoint(path, method);
         
-        logger.info("🔍 shouldNotFilter - {} {} -> {}", method, path, isPublic ? "PUBLICO" : "PROTEGIDO");
+        logger.info("shouldNotFilter - {} {} -> {}", method, path, isPublic ? "PUBLICO" : "PROTEGIDO");
         if (path.contains("password-recovery")) {
-            logger.info("🔐 PASSWORD RECOVERY ENDPOINT - {} {} -> {}", method, path, isPublic ? "PUBLICO" : "PROTEGIDO");
+            logger.info("PASSWORD RECOVERY ENDPOINT - {} {} -> {}", method, path, isPublic ? "PUBLICO" : "PROTEGIDO");
         }
         return isPublic;
     }

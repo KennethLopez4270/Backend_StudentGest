@@ -28,13 +28,13 @@ public class EmailVerificationService {
     private EmailService emailService;
     
     @Autowired
-    private SecurityConfigService securityConfigService; // ✅ CAMBIO
+    private SecurityConfigService securityConfigService; 
     
     public boolean sendVerificationEmail(User user) {
         try {
             logger.info("Enviando email de verificación para usuario: {}", user.getEmail());
             
-            // ✅ CAMBIO: Usar SecurityConfigService
+            // CAMBIO: Usar SecurityConfigService
             Map<String, Object> emailConfig = securityConfigService.getEmailConfig();
             int expiryHours = (Integer) emailConfig.get("verificationTokenExpiryHours");
             String baseUrl = (String) emailConfig.get("baseVerificationUrl");
@@ -132,7 +132,7 @@ public class EmailVerificationService {
         }
     }
     
-    // ✅ NUEVO: Reenviar email de verificación
+    //  Reenviar email de verificación
     public boolean resendVerificationEmail(String email) {
         try {
             Optional<User> userOptional = userRepository.findByEmail(email);

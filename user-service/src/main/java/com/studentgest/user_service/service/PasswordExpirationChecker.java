@@ -42,14 +42,14 @@ public class PasswordExpirationChecker {
                     userRepository.save(user);
                     expirados++;
                     
-                    logger.info("⏰ Contraseña marcada como expirada para: {}", user.getEmail());
+                    logger.info("Contraseña marcada como expirada para: {}", user.getEmail());
                 }
             }
             
-            logger.info("✅ Verificación completada. {} contraseñas marcadas como expiradas", expirados);
+            logger.info("Verificación completada. {} contraseñas marcadas como expiradas", expirados);
             
         } catch (Exception e) {
-            logger.error("❌ Error en verificación de expiraciones: {}", e.getMessage());
+            logger.error("Error en verificación de expiraciones: {}", e.getMessage());
         }
     }
 }

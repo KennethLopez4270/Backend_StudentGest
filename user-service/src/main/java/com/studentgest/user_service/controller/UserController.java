@@ -96,13 +96,13 @@ public class UserController {
             user.setApellido_materno(sanitizeInput(user.getApellido_materno()));
             user.setEmail(sanitizeEmail(user.getEmail()));
 
-            logger.info("✅ Datos sanitizados, llamando a userService...");
+            logger.info("Datos sanitizados, llamando a userService...");
             
             User savedUser = userService.createUser(user);
             
-            logger.info("✅ Usuario creado exitosamente: {}", savedUser.getEmail());
-            logger.info("✅ ID generado: {}", savedUser.getId_usuario());
-            logger.info("✅ Estado: {}", savedUser.getEstado());
+            logger.info("Usuario creado exitosamente: {}", savedUser.getEmail());
+            logger.info("ID generado: {}", savedUser.getId_usuario());
+            logger.info("Estado: {}", savedUser.getEstado());
 
             return ResponseEntity.ok(Map.of(
                 "success", true,
@@ -117,21 +117,21 @@ public class UserController {
             ));
 
         } catch (IllegalArgumentException e) {
-            logger.error("❌ Error de validación: {}", e.getMessage());
+            logger.error("Error de validación: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of(
                 "success", false,
                 "error", "Error de validación",
                 "message", e.getMessage()
             ));
         } catch (DataIntegrityViolationException e) {
-            logger.error("❌ Error de base de datos: {}", e.getMessage());
+            logger.error("Error de base de datos: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of(
                 "success", false,
                 "error", "Error de base de datos",
                 "message", "El email ya está en uso"
             ));
         } catch (Exception e) {
-            logger.error("💥 ERROR INTERNO: {}", e.getMessage(), e);
+            logger.error("ERROR INTERNO: {}", e.getMessage(), e);
             e.printStackTrace();
             return ResponseEntity.status(500).body(Map.of(
                 "success", false,
@@ -203,7 +203,7 @@ public class UserController {
             Optional<User> userOptional = userService.getUserByEmail(email);
 
             if (userOptional.isEmpty()) {
-                logger.warn("❌ Usuario no encontrado");
+                logger.warn("Usuario no encontrado");
                 return ResponseEntity.status(401).body(Map.of(
                     "success", false,
                     "message", "Usuario no encontrado",
@@ -212,19 +212,19 @@ public class UserController {
             }
 
             User user = userOptional.get();
-            logger.info("✅ Usuario encontrado: {}", user.getEmail());
-            logger.info("📝 Estado: {}", user.getEstado());
-            logger.info("🔓 Activo: {}", user.isActivo());
-            logger.info("🔐 Contraseña en DB: {}", user.getPassword());
-            logger.info("🔑 Longitud password: {}", user.getPassword() != null ? user.getPassword().length() : "null");
+            logger.info("Usuario encontrado: {}", user.getEmail());
+            logger.info("Estado: {}", user.getEstado());
+            logger.info("Activo: {}", user.isActivo());
+            logger.info("Contraseña en DB: {}", user.getPassword());
+            logger.info("Longitud password: {}", user.getPassword() != null ? user.getPassword().length() : "null");
 
             // Verificar contraseña
             boolean passwordMatch = false;
             try {
                 passwordMatch = passwordEncoder.matches(password, user.getPassword());
-                logger.info("🔍 ¿Coincide contraseña?: {}", passwordMatch);
+                logger.info("¿Coincide contraseña?: {}", passwordMatch);
             } catch (Exception e) {
-                logger.error("❌ Error al verificar contraseña: {}", e.getMessage());
+                logger.error("Error al verificar contraseña: {}", e.getMessage());
                 return ResponseEntity.status(500).body(Map.of(
                     "success", false,
                     "message", "Error interno",
@@ -233,7 +233,7 @@ public class UserController {
             }
 
             if (!EstadoUsuario.APROBADO.equals(user.getEstado())) {
-                logger.warn("❌ Usuario no aprobado");
+                logger.warn("Usuario no aprobado");
                 return ResponseEntity.status(401).body(Map.of(
                     "success", false,
                     "message", "Usuario no aprobado",
@@ -242,7 +242,7 @@ public class UserController {
             }
 
             if (!user.isActivo()) {
-                logger.warn("❌ Usuario inactivo");
+                logger.warn("Usuario inactivo");
                 return ResponseEntity.status(401).body(Map.of(
                     "success", false,
                     "message", "Usuario inactivo",
@@ -258,7 +258,7 @@ public class UserController {
                     "debug", "Todo correcto"
                 ));
             } else {
-                logger.warn("❌ Contraseña incorrecta");
+                logger.warn("Contraseña incorrecta");
                 return ResponseEntity.status(401).body(Map.of(
                     "success", false,
                     "message", "Contraseña incorrecta",
@@ -267,7 +267,7 @@ public class UserController {
             }
 
         } catch (Exception e) {
-            logger.error("💥 Error en debug: {}", e.getMessage(), e);
+            logger.error("Error en debug: {}", e.getMessage(), e);
             return ResponseEntity.status(500).body(Map.of(
                 "success", false,
                 "message", "Error interno",
@@ -496,7 +496,7 @@ public ResponseEntity<?> publicDebugToken(HttpServletRequest request) {
 
     @GetMapping("/simple-policy")
     public ResponseEntity<?> getSimplePolicy() {
-        System.out.println("🎯 Endpoint /simple-policy llamado");
+        System.out.println("Endpoint /simple-policy llamado");
         return ResponseEntity.ok(Map.of(
             "success", true,
             "message", "Endpoint funcionando",

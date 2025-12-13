@@ -35,44 +35,44 @@ public class EmailService {
      */
     public boolean sendVerificationEmail(String to, String name, String verificationLink) {
         logger.info("═══════════════════════════════════════════════════");
-        logger.info("🚀 INICIANDO ENVÍO DE EMAIL DE VERIFICACIÓN");
+        logger.info(" INICIANDO ENVÍO DE EMAIL DE VERIFICACIÓN");
         logger.info("═══════════════════════════════════════════════════");
-        logger.info("📧 Destinatario: {}", to);
-        logger.info("👤 Nombre: {}", name);
-        logger.info("🔗 Enlace: {}", verificationLink);
-        logger.info("📨 Remitente: {}", fromEmail);
-        logger.info("🏠 SMTP Host: {}:{}", mailHost, mailPort);
+        logger.info("Destinatario: {}", to);
+        logger.info("Nombre: {}", name);
+        logger.info("Enlace: {}", verificationLink);
+        logger.info("Remitente: {}", fromEmail);
+        logger.info("SMTP Host: {}:{}", mailHost, mailPort);
         
         boolean htmlSuccess = false;
         boolean textSuccess = false;
         
         try {
-            // ✅ PRIMERO intentar con HTML
+            
             logger.info("🔄 Intentando envío con formato HTML...");
             htmlSuccess = sendVerificationEmailHtml(to, name, verificationLink);
             
             if (htmlSuccess) {
-                logger.info("✅ Email HTML enviado exitosamente");
+                logger.info("Email HTML enviado exitosamente");
                 return true;
             } else {
-                logger.warn("⚠️ Falló email HTML, intentando con texto plano...");
-                // ✅ FALLBACK a texto plano
+                logger.warn("Falló email HTML, intentando con texto plano...");
+                
                 textSuccess = sendVerificationEmailPlainText(to, name, verificationLink);
                 
                 if (textSuccess) {
-                    logger.info("✅ Email de texto plano enviado exitosamente");
+                    logger.info("Email de texto plano enviado exitosamente");
                     return true;
                 } else {
-                    logger.error("❌ Ambos métodos fallaron");
+                    logger.error("Ambos métodos fallaron");
                     return false;
                 }
             }
             
         } catch (Exception e) {
-            logger.error("💥 ERROR CRÍTICO en sendVerificationEmail: {}", e.getMessage(), e);
+            logger.error("ERROR CRÍTICO en sendVerificationEmail: {}", e.getMessage(), e);
             return false;
         } finally {
-            logger.info("📊 RESUMEN - HTML: {}, Texto: {}", 
+            logger.info(" RESUMEN - HTML: {}, Texto: {}", 
                        htmlSuccess ? "✅" : "❌", 
                        textSuccess ? "✅" : "❌");
             logger.info("═══════════════════════════════════════════════════");
@@ -84,32 +84,32 @@ public class EmailService {
      */
     private boolean sendVerificationEmailHtml(String to, String name, String verificationLink) {
         try {
-            logger.info("🎨 Preparando email HTML para: {}", to);
+            logger.info(" Preparando email HTML para: {}", to);
             
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             
             helper.setFrom(fromEmail, "StudentGest - Sistema de Gestión Estudiantil");
             helper.setTo(to);
-            helper.setSubject("✅ Verifica tu cuenta - StudentGest");
+            helper.setSubject("Verifica tu cuenta - StudentGest");
             
             // Email con formato HTML profesional
             String htmlContent = buildVerificationEmailHtml(name, verificationLink);
             helper.setText(htmlContent, true);
             
-            logger.info("📤 Enviando email HTML...");
+            logger.info("Enviando email HTML...");
             mailSender.send(message);
             
-            logger.info("🎉 Email HTML enviado EXITOSAMENTE a: {}", to);
-            logger.info("🔗 Enlace de verificación enviado: {}", verificationLink);
+            logger.info(" Email HTML enviado EXITOSAMENTE a: {}", to);
+            logger.info(" Enlace de verificación enviado: {}", verificationLink);
             return true;
             
         } catch (MessagingException e) {
-            logger.error("❌ Error de mensajería HTML para {}: {}", to, e.getMessage());
-            logger.debug("🔧 Detalles técnicos:", e);
+            logger.error(" Error de mensajería HTML para {}: {}", to, e.getMessage());
+            logger.debug("Detalles técnicos:", e);
             return false;
         } catch (Exception e) {
-            logger.error("💥 Error inesperado en email HTML para {}: {}", to, e.getMessage());
+            logger.error("Error inesperado en email HTML para {}: {}", to, e.getMessage());
             return false;
         }
     }

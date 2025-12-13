@@ -36,8 +36,8 @@ public class AdvancedPasswordPolicyService {
         int score = 0;
         List<String> feedback = new ArrayList<>();
 
-        System.out.println("🔍 Evaluando contraseña: " + password);
-        System.out.println("📋 Configuración: minLength=" + minLength + 
+        System.out.println("Evaluando contraseña: " + password);
+        System.out.println("Configuración: minLength=" + minLength + 
                          ", requiresUppercase=" + requiresUppercase +
                          ", requiresLowercase=" + requiresLowercase +
                          ", requiresNumbers=" + requiresNumbers +
@@ -47,10 +47,10 @@ public class AdvancedPasswordPolicyService {
         // 1. Longitud (40 puntos máximo)
         if (password.length() >= minLength) {
             score += 40;
-            System.out.println("✅ Longitud adecuada: +40 puntos");
+            System.out.println("Longitud adecuada: +40 puntos");
         } else {
             feedback.add("Mínimo " + minLength + " caracteres");
-            System.out.println("❌ Longitud insuficiente");
+            System.out.println("Longitud insuficiente");
         }
 
         // 2. Mayúsculas (15 puntos si está requerido)
@@ -58,10 +58,10 @@ public class AdvancedPasswordPolicyService {
         if (requiresUppercase) {
             if (hasUppercase) {
                 score += 15;
-                System.out.println("✅ Tiene mayúscula: +15 puntos");
+                System.out.println("Tiene mayúscula: +15 puntos");
             } else {
                 feedback.add("Falta mayúscula");
-                System.out.println("❌ No tiene mayúscula");
+                System.out.println("No tiene mayúscula");
             }
         }
 
@@ -70,10 +70,10 @@ public class AdvancedPasswordPolicyService {
         if (requiresLowercase) {
             if (hasLowercase) {
                 score += 15;
-                System.out.println("✅ Tiene minúscula: +15 puntos");
+                System.out.println("Tiene minúscula: +15 puntos");
             } else {
                 feedback.add("Falta minúscula");
-                System.out.println("❌ No tiene minúscula");
+                System.out.println("No tiene minúscula");
             }
         }
 
@@ -82,10 +82,10 @@ public class AdvancedPasswordPolicyService {
         if (requiresNumbers) {
             if (hasNumbers) {
                 score += 15;
-                System.out.println("✅ Tiene números: +15 puntos");
+                System.out.println("Tiene números: +15 puntos");
             } else {
                 feedback.add("Falta número");
-                System.out.println("❌ No tiene números");
+                System.out.println("No tiene números");
             }
         }
 
@@ -97,10 +97,10 @@ public class AdvancedPasswordPolicyService {
             
             if (hasSpecial) {
                 score += 15;
-                System.out.println("✅ Tiene caracteres especiales: +15 puntos");
+                System.out.println("Tiene caracteres especiales: +15 puntos");
             } else {
                 feedback.add("Falta símbolo especial (" + specialChars + ")");
-                System.out.println("❌ No tiene caracteres especiales");
+                System.out.println(" No tiene caracteres especiales");
             }
             
             if (hasSpecial) {
@@ -110,60 +110,60 @@ public class AdvancedPasswordPolicyService {
                         foundSpecials.add(c);
                     }
                 }
-                System.out.println("🎯 Caracteres especiales encontrados: " + foundSpecials);
+                System.out.println("Caracteres especiales encontrados: " + foundSpecials);
             }
         }
 
         // 6. ANÁLISIS DE DIVERSIDAD DE CARACTERES (NUEVO)
         int characterTypes = countCharacterTypes(password, requiresUppercase, requiresLowercase, requiresNumbers, requiresSpecial, specialChars);
-        System.out.println("🎭 Tipos de caracteres diferentes: " + characterTypes);
+        System.out.println("Tipos de caracteres diferentes: " + characterTypes);
         
         // Penalización severa por falta de diversidad
         if (characterTypes < 2) {
             score = Math.max(0, score - 30);
             feedback.add("Muy poca diversidad de caracteres");
-            System.out.println("⚠️  Penalización severa por falta de diversidad: -30 puntos");
+            System.out.println("Penalización severa por falta de diversidad: -30 puntos");
         } else if (characterTypes < 3) {
             score = Math.max(0, score - 15);
             feedback.add("Poca diversidad de caracteres");
-            System.out.println("⚠️  Penalización por poca diversidad: -15 puntos");
+            System.out.println(" Penalización por poca diversidad: -15 puntos");
         }
 
         // 7. Bonus por diversidad extra (solo si tiene buena diversidad)
         if (characterTypes >= 3 && password.length() > minLength + 4) {
             score += 10;
-            System.out.println("🎁 Bonus por diversidad y longitud: +10 puntos");
+            System.out.println("Bonus por diversidad y longitud: +10 puntos");
         }
 
         // 8. PENALIZACIONES MÁS ESTRICTAS POR PATRONES DÉBILES
         if (hasSequentialChars(password)) {
             score = Math.max(0, score - 20);
             feedback.add("Patrón secuencial detectado");
-            System.out.println("⚠️  Penalización por secuencia: -20 puntos");
+            System.out.println("Penalización por secuencia: -20 puntos");
         }
         
         if (hasRepeatedChars(password)) {
             score = Math.max(0, score - 15);
             feedback.add("Demasiados caracteres repetidos");
-            System.out.println("⚠️  Penalización por repetición: -15 puntos");
+            System.out.println(" Penalización por repetición: -15 puntos");
         }
         
         if (isOnlyNumbers(password)) {
             score = Math.max(0, score - 25);
             feedback.add("Solo contiene números");
-            System.out.println("⚠️  Penalización por solo números: -25 puntos");
+            System.out.println(" Penalización por solo números: -25 puntos");
         }
         
         if (isOnlyLetters(password)) {
             score = Math.max(0, score - 20);
             feedback.add("Solo contiene letras");
-            System.out.println("⚠️  Penalización por solo letras: -20 puntos");
+            System.out.println(" Penalización por solo letras: -20 puntos");
         }
         
         if (commonPasswords.contains(password.toLowerCase())) {
             score = Math.max(0, score - 30);
             feedback.add("Contraseña demasiado común");
-            System.out.println("⚠️  Penalización por contraseña común: -30 puntos");
+            System.out.println(" Penalización por contraseña común: -30 puntos");
         }
 
         // Asegurar que el score no sea negativo ni mayor a 100
@@ -172,13 +172,13 @@ public class AdvancedPasswordPolicyService {
         // NUEVA LÓGICA: Si tiene menos de 3 tipos de caracteres, limitar fuerza máxima
         if (characterTypes < 3 && score > 50) {
             score = 50;
-            System.out.println("📉 Limitación por baja diversidad: score máximo 50");
+            System.out.println("Limitación por baja diversidad: score máximo 50");
         }
         
         String strength = getStrengthLevel(score);
 
-        System.out.println("📊 Puntuación final: " + score + " - " + strength);
-        System.out.println("💬 Feedback: " + feedback);
+        System.out.println("Puntuación final: " + score + " - " + strength);
+        System.out.println("Feedback: " + feedback);
         System.out.println("═══════════════════════════════════════════");
 
         return new PasswordStrengthResult(score, strength, feedback);

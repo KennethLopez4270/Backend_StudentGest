@@ -19,7 +19,7 @@ public class EmailValidationController {
     @Autowired
     private EmailValidationService emailValidationService;
     
-    @Autowired // ✅ AÑADE ESTA ANOTACIÓN
+    @Autowired 
     private SecurityConfigService securityConfigService;
     
     @PostMapping("/validate")

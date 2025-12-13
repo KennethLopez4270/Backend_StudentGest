@@ -16,26 +16,26 @@ public class EmailValidationService {
     
     public boolean isValidEmail(String email) {
         if (email == null || email.trim().isEmpty()) {
-            System.out.println("❌ Email es null o vacío");
+            System.out.println(" Email es null o vacío");
             return false;
         }
         
         email = email.trim().toLowerCase();
-        System.out.println("📧 Validando email: " + email);
+        System.out.println(" Validando email: " + email);
         
         Map<String, Object> emailConfig = securityConfigService.getEmailConfig();
         String emailPattern = (String) emailConfig.get("emailPattern");
         String allowedDomains = (String) emailConfig.get("allowedDomains");
         
-        System.out.println("🔧 Patrón regex: " + emailPattern);
-        System.out.println("🔧 Dominios permitidos: " + allowedDomains);
+        System.out.println(" Patrón regex: " + emailPattern);
+        System.out.println("Dominios permitidos: " + allowedDomains);
         
         // Validar formato básico
         boolean patternMatches = Pattern.matches(emailPattern, email);
-        System.out.println("✅ Validación regex: " + patternMatches);
+        System.out.println(" Validación regex: " + patternMatches);
         
         if (!patternMatches) {
-            System.out.println("❌ Email no cumple el patrón regex");
+            System.out.println(" Email no cumple el patrón regex");
             return false;
         }
         

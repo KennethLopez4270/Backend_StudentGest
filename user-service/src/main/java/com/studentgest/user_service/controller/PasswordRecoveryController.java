@@ -56,7 +56,7 @@ public class PasswordRecoveryController {
             Optional<User> userOptional = userRepository.findByEmail(email.toLowerCase().trim());
             
             if (userOptional.isEmpty()) {
-                // Por seguridad, no revelar si el email existe o no
+                
                 Map<String, Object> response = new HashMap<>();
                 response.put("success", true);
                 response.put("message", "Si el email existe, se ha enviado un enlace de recuperación");
