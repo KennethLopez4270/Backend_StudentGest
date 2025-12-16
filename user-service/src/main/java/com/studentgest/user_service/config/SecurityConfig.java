@@ -61,8 +61,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/password-change/**", "/api/password-recovery/**").permitAll()
                         .requestMatchers("/error").permitAll() // ✅ PERMITIR ERROR CONTROLLER
 
-                        // ✅ ROLES (SOLO GET PÚBLICO)
-                        .requestMatchers(HttpMethod.GET, "/api/roles/**").permitAll()
+                        // ✅ ROLES (TOTALMENTE PÚBLICO - SOLICITADO POR USUARIO)
+                        .requestMatchers("/api/roles/**").permitAll()
 
                         // ❌ RESTO REQUIERE AUTENTICACIÓN
                         .anyRequest().authenticated())
