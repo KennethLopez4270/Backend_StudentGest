@@ -35,7 +35,7 @@ public class SecurityConfig {
         System.out.println("🔐 INICIANDO CONFIGURACIÓN DE SEGURIDAD...");
 
         http
-                .cors(cors -> cors.disable())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authz -> authz
                         // ✅ PERMITIR OPTIONS (CORS) GLOBALMENTE
@@ -58,6 +58,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/security-config/**").permitAll()
                         .requestMatchers("/api/captcha/**", "/api/email-verification/**", "/api/email/**").permitAll()
                         .requestMatchers("/api/password-strength/**", "/api/app-config/**").permitAll()
+                        .requestMatchers("/api/assets/**").permitAll()
                         .requestMatchers("/api/password-change/**", "/api/password-recovery/**").permitAll()
                         .requestMatchers("/error").permitAll() // ✅ PERMITIR ERROR CONTROLLER
 
@@ -77,7 +78,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(
-                List.of("http://localhost:5173", "https://proyecto-seguridad-studengest.netlify.app"));
+                List.of("http://localhost:5173", "http://localhost:5174", "https://frt-studentgest.netlify.app"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Content-Type", "Authorization"));
         configuration.setAllowCredentials(true);

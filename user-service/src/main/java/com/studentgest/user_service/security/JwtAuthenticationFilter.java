@@ -144,6 +144,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         // ✅ App config endpoints
                         requestURI.startsWith("/api/app-config/") ||
 
+                        // ✅ Assets endpoints
+                        requestURI.startsWith("/api/assets") ||
+
                         // ✅ Roles endpoint (SOLO GET, recursivo)
                         ((requestURI.equals("/api/roles") || requestURI.startsWith("/api/roles/"))
                                 && "GET".equalsIgnoreCase(method))
