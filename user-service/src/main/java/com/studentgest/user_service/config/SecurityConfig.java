@@ -53,6 +53,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/users/**").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/api/users/**").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/api/users/**").permitAll()
+                        // ✅ Endpoints específicos de gestión de estado (Explícitos)
+                        .requestMatchers("/api/users/activar/**", "/api/users/desactivar/**").permitAll()
+                        .requestMatchers("/api/users/aprobar/**", "/api/users/desaprobar/**").permitAll()
+                        .requestMatchers("/api/users/desbloquear/**").permitAll()
 
                         // ✅ OTROS ENDPOINTS PÚBLICOS
                         .requestMatchers("/api/security-config/**").permitAll()
