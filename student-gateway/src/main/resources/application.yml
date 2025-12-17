@@ -39,12 +39,21 @@ spring.cloud.gateway:
   globalcors:
     corsConfigurations:
       '[/**]':
-        allowedOrigins: "*"
+        allowedOrigins:
+          - "http://localhost:5173"
+          - "http://localhost:5174"
+          - "http://localhost:4173"
+          - "https://proyecto-seguridad-studengest.netlify.app"
+          - "https://frt-studentgest.netlify.app"
         allowedMethods:
           - GET
           - POST
           - PUT
           - DELETE
+          - OPTIONS
+        allowedHeaders:
+          - "*"
+        allowCredentials: true
 
 # Configuración JWT
 jwt:

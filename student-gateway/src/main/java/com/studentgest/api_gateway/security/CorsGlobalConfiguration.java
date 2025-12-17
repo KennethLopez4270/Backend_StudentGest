@@ -14,6 +14,8 @@ public class CorsGlobalConfiguration {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(
                 java.util.List.of("http://localhost:5173", "http://localhost:5174",
+                        "http://localhost:4173",
+                        "https://proyecto-seguridad-studengest.netlify.app",
                         "https://frt-studentgest.netlify.app"));
         config.addAllowedHeader("*");
         config.addAllowedMethod("*");
