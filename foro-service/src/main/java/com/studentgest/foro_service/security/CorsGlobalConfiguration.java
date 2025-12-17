@@ -14,9 +14,15 @@ public class CorsGlobalConfiguration {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**") // todas las rutas
-                        .allowedOrigins("*") // todos los orígenes (para desarrollo)
-                        .allowedMethods("*") // GET, POST, PUT, DELETE...
-                        .allowedHeaders("*"); // todos los headers
+                        .allowedOrigins(
+                                "http://localhost:5173",
+                                "http://localhost:5174",
+                                "http://localhost:4173",
+                                "https://proyecto-seguridad-studengest.netlify.app",
+                                "https://frt-studentgest.netlify.app")
+                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                        .allowedHeaders("*")
+                        .allowCredentials(true);
             }
         };
     }
