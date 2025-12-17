@@ -32,20 +32,81 @@ public class Attendance {
     private Timestamp createdAt;
 
     // Getters y Setters
-    public Integer getId_asistencia() { return id_asistencia; }
-    public void setId_asistencia(Integer id_asistencia) { this.id_asistencia = id_asistencia; }
-    public Integer getStudentId() { return studentId; }
-    public void setStudentId(Integer studentId) { this.studentId = studentId; }
-    public Integer getCourseId() { return courseId; }
-    public void setCourseId(Integer courseId) { this.courseId = courseId; }
-    public Date getFecha() { return fecha; }
-    public void setFecha(Date fecha) { this.fecha = fecha; }
-    public String getTipo() { return tipo; }
-    public void setTipo(String tipo) { this.tipo = tipo; }
-    public String getExcusa() { return excusa; }
-    public void setExcusa(String excusa) { this.excusa = excusa; }
-    public Integer getRegisteredBy() { return registeredBy; }
-    public void setRegisteredBy(Integer registeredBy) { this.registeredBy = registeredBy; }
-    public Timestamp getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Timestamp createdAt) { this.createdAt = createdAt; }
+    public Integer getId_asistencia() {
+        return id_asistencia;
+    }
+
+    public void setId_asistencia(Integer id_asistencia) {
+        this.id_asistencia = id_asistencia;
+    }
+
+    public Integer getStudentId() {
+        return studentId;
+    }
+
+    public void setStudentId(Integer studentId) {
+        this.studentId = studentId;
+    }
+
+    public Integer getCourseId() {
+        return courseId;
+    }
+
+    public void setCourseId(Integer courseId) {
+        this.courseId = courseId;
+    }
+
+    public Date getFecha() {
+        return fecha;
+    }
+
+    public void setFecha(Date fecha) {
+        this.fecha = fecha;
+    }
+
+    public String getTipo() {
+        return tipo;
+    }
+
+    public void setTipo(String tipo) {
+        this.tipo = tipo;
+    }
+
+    public String getExcusa() {
+        return excusa;
+    }
+
+    public void setExcusa(String excusa) {
+        this.excusa = excusa;
+    }
+
+    public Integer getRegisteredBy() {
+        return registeredBy;
+    }
+
+    public void setRegisteredBy(Integer registeredBy) {
+        this.registeredBy = registeredBy;
+    }
+
+    public Timestamp getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Timestamp createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    @Override
+    public String toString() {
+        return "Attendance{" +
+                "id_asistencia=" + id_asistencia +
+                ", studentId=" + studentId +
+                ", courseId=" + courseId +
+                ", fecha=" + fecha +
+                ", tipo='" + tipo + '\'' +
+                ", excusa='" + excusa + '\'' +
+                ", registeredBy=" + registeredBy +
+                ", createdAt=" + createdAt +
+                '}';
+    }
 }

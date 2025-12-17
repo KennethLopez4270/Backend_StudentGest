@@ -69,6 +69,9 @@ public class SecurityConfig {
                         // ✅ ROLES (TOTALMENTE PÚBLICO - SOLICITADO POR USUARIO)
                         .requestMatchers("/api/roles/**").permitAll()
 
+                        // ✅ LOGS (PÚBLICO PARA VISUALIZACIÓN)
+                        .requestMatchers("/api/logs/**").permitAll()
+
                         // ❌ RESTO REQUIERE AUTENTICACIÓN
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

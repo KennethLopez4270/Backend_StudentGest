@@ -19,7 +19,8 @@ public class PadreEstudianteService {
     private final EstudianteRepository estudianteRepository;
     private final PadreEstudianteRepository padreEstudianteRepository;
 
-    public PadreEstudianteService(UsuarioClient usuarioClient, EstudianteRepository estudianteRepository, PadreEstudianteRepository padreEstudianteRepository) {
+    public PadreEstudianteService(UsuarioClient usuarioClient, EstudianteRepository estudianteRepository,
+            PadreEstudianteRepository padreEstudianteRepository) {
         this.usuarioClient = usuarioClient;
         this.estudianteRepository = estudianteRepository;
         this.padreEstudianteRepository = padreEstudianteRepository;
@@ -27,11 +28,7 @@ public class PadreEstudianteService {
 
     // Obtener estudiantes por id del padre
     public List<EstudianteUsuarioDTO> obtenerEstudiantesPorPadre(Long idPadre) {
-        UsuarioDTO usuario = usuarioClient.getUsuarioById(idPadre);
-        if (usuario == null || !usuario.getRol().equalsIgnoreCase("padre")) {
-            throw new IllegalArgumentException("Este usuario no es padre");
-        }
-
+        // Obtener relaciones sin verificar rol (la validación se hace en el frontend)
         List<PadreEstudiante> relaciones = padreEstudianteRepository.findByIdPadre(idPadre);
         List<EstudianteUsuarioDTO> hijos = new ArrayList<>();
 
