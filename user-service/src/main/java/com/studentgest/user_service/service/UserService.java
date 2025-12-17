@@ -127,15 +127,14 @@ public class UserService {
             newUser.setPassword(hashedPassword);
             newUser.setId_rol(idRolAsignar); // Asignar el ID del rol
             newUser.setRol(rolAsignar); // ✅ Asignar la entidad Rol para que aparezca en la respuesta
-            newUser.setEstado(EstadoUsuario.APROBADO); // ✅ APROBAR AUTOMÁTICAMENTE
+            newUser.setEstado(EstadoUsuario.PENDIENTE); // ✅ Estado PENDIENTE para requerir aprobación admin
             newUser.setActivo(true); // ✅ ACTIVAR AUTOMÁTICAMENTE
             newUser.setIntentosFallidos(0);
             newUser.setBloqueado(false);
             newUser.setRequiresPasswordChange(false);
 
-            // ✅ NUEVO: Inicializar estado_gmail como "verificado" para permitir login
-            // inmediato
-            newUser.setEstadoGmail("verificado");
+            // ✅ Inicializar estado_gmail como "pendiente" para requerir verificación
+            newUser.setEstadoGmail("pendiente");
 
             // Establecer timestamps
             newUser.setCreado_en(new Timestamp(System.currentTimeMillis()));
